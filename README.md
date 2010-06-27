@@ -6,11 +6,9 @@ This project is my practice of the book "Modern Compiler Implementation in C".
 Progress
 ========
 
-Chapter 1 - Program 1:
+Chapter 1 - Program 2:
 
-Write a function int `maxargs(ast_stmt_t)` that tells the maximum number of
-arguments of any print statement within any subexpression of a given statement.
-For example, `maxargs(prog)` is 2.
-
-Hint: remember that print statements can contain expressions that contain other
-print statements.
+Write a function `void interp(ast_stmt_t)` that "interprets" a program in
+this language. To write in a "functional programming" style -- in while you
+never use an assignment statement -- initialize each local variable as you
+declare it.
