@@ -23,21 +23,27 @@ static int maxargs_expr(ast_expr_t expr)
         }
         default:
             fprintf(stderr, "Wrong expression kind: %d\n", expr->kind);
-            return 0;
+            exit(1);
     }
 }
 
 static int maxargs_expr_list(ast_expr_list_t exprs)
 {
-    switch (exprs->kind) {
-        case AST_PAIR_EXPR_LIST:
-            return 1 + maxargs_expr_list(exprs->u.pair.tail);
-        case AST_LAST_EXPR_LIST:
-            return 1;
-        default:
-            fprintf(stderr, "Wrong expr_list kind: %d\n", exprs->kind);
-            return 0;
+    int max1 = 0, max2 = 0;
+
+    for (; exprs->kind == AST_PAIR_EXPR_LIST; exprs = exprs->u.pair.tail) {
+        int temp = maxargs_expr(exprs->u.pair.head);
+
+        if (temp > max2)
+            max2 = temp;
+        ++max1;
     }
+    if (exprs->kind != AST_LAST_EXPR_LIST) {
+        fprintf(stderr, "Wrong expr_list kind: %d\n", exprs->kind);
+        exit(1);
+    }
+    ++max1;
+    return max1 > max2 ? max1 : max2;
 }
 
 static int maxargs_stmt(ast_stmt_t stmt)
@@ -54,7 +60,7 @@ static int maxargs_stmt(ast_stmt_t stmt)
             return maxargs_expr_list(stmt->u.print.exprs);
         default:
             fprintf(stderr, "Wrong statement kind: %d\n", stmt->kind);
-            return 0;
+            exit(1);
     }
 }
 
