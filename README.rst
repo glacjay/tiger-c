@@ -6,9 +6,7 @@ This project is my practice of the book "Modern Compiler Implementation in C".
 Progress
 ========
 
-Chapter 1 - Program 2:
+Chapter 2 - Program 1:
 
-Write a function ``void interp(ast_stmt_t)`` that "interprets" a program in
-this language. To write in a "functional programming" style -- in while you
-never use an assignment statement -- initialize each local variable as you
-declare it.
+Use Lex to implement a lexical analyzer for the Tiger language. Appendix A
+describes, among other things, the lexical tokens of Tiger.
