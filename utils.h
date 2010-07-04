@@ -12,4 +12,11 @@ typedef char bool;
 
 void *checked_malloc(int);
 
+typedef struct list_s
+{
+    void *data;
+    struct list_s *next;
+} *list_t;
+list_t list(void *data, list_t next);
+
 #endif

@@ -2,41 +2,90 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "ast.h"
 #include "errmsg.h"
+#include "symbol.h"
+#include "utils.h"
 
 int yylex(void);
 void yyerror(char *msg);
 %}
 
-%debug
-
 %union {
-    int pos;
     int num;
     string_t str;
+    list_t list;
+    symbol_t sym;
+    ast_decl_t decl;
+    ast_expr_t expr;
+    ast_type_t type;
+    ast_var_t var;
+    ast_func_t func;
 }
 
 %{
 static void print_token_value(FILE *fp, int type, YYSTYPE value);
 #define YYPRINT(fp, type, value) print_token_value(fp, type, value)
+
+#define LIST_ACTION(target, prev, elem) \
+    do \
+    { \
+        list_t p, e = list((elem), NULL); \
+        (target) = p = (prev); \
+        if (p) \
+        { \
+            while (p->next) \
+                p = p->next; \
+            p->next = e; \
+        } \
+        else \
+            (target) = e; \
+    } \
+    while (false)
+#define LVALUE_ACTION(target, prev, elem) \
+    do \
+    { \
+        ast_var_t p, var = (elem); \
+        (target) = p = (prev); \
+        if (p) \
+        { \
+            while (p->u.field.var) \
+                p = p->u.field.var; \
+            p->u.field.var = var; \
+        } \
+        else \
+            (target) = var; \
+    } \
+    while (false)
 %}
+
+%debug
 
 %token <str> TK_ID TK_STRING
 %token <num> TK_INT
 
-%token <pos>
+%token
     TK_COMMA TK_COLON TK_SEMICOLON TK_LPARAN TK_RPARAN TK_LBRACK TK_RBRACK
     TK_LBRACE TK_RBRACE TK_DOT TK_ASSIGN
     TK_ARRAY TK_IF TK_THEN TK_ELSE TK_WHILE TK_FOR TK_TO TK_DO TK_LET TK_IN
     TK_END TK_OF TK_BREAK TK_NIL
     TK_FUNCTION TK_VAR TK_TYPE
 
-%left <pos> TK_OR
-%left <pos> TK_AND
-%nonassoc <pos> TK_EQ TK_NEQ TK_LT TK_LE TK_GT TK_GE
-%left <pos> TK_PLUS TK_MINUS
-%left <pos> TK_TIMES TK_DIVIDE
-%left <pos> TK_UMINUS
+%left TK_OR
+%left TK_AND
+%nonassoc TK_EQ TK_NEQ TK_LT TK_LE TK_GT TK_GE
+%left TK_PLUS TK_MINUS
+%left TK_TIMES TK_DIVIDE
+%left TK_UMINUS
+
+%type <decl> decl var_decl
+%type <expr> program expr
+%type <type> type
+%type <var> lvalue lvalue_
+%type <list> expr_seq arg_seq efield_seq decls funcs_decl types_decl fields
+%type <list> field_seq
+%type <func> func_decl
+%type <sym> id
 
 %start program
 
@@ -44,101 +93,164 @@ static void print_token_value(FILE *fp, int type, YYSTYPE value);
 
 program:
     expr
+    { $$ = $1; }
 
 expr:
     lvalue
+    { $$ = ast_var_expr($1); }
 |   TK_NIL
+    { $$ = ast_nil_expr(); }
 |   expr expr_seq
+    { $$ = ast_seq_expr(list($1, $2)); }
 |   TK_LPARAN TK_RPARAN
+    { $$ = ast_seq_expr(NULL); }
 |   TK_LPARAN expr TK_RPARAN
+    { $$ = $2; }
 |   TK_INT
+    { $$ = ast_num_expr($1); }
 |   TK_STRING
+    { $$ = ast_string_expr($1); }
 |   TK_MINUS expr %prec TK_UMINUS
+    { $$ = ast_op_expr(ast_num_expr(0), AST_MINUS, $2); }
 |   id TK_LPARAN TK_RPARAN
-|   id TK_LPARAN expr param_seq TK_RPARAN
+    { $$ = ast_call_expr($1, NULL); }
+|   id TK_LPARAN expr arg_seq TK_RPARAN
+    { $$ = ast_call_expr($1, list($3, $4)); }
 |   expr TK_PLUS expr
+    { $$ = ast_op_expr($1, AST_PLUS, $3); }
 |   expr TK_MINUS expr
+    { $$ = ast_op_expr($1, AST_MINUS, $3); }
 |   expr TK_TIMES expr
+    { $$ = ast_op_expr($1, AST_TIMES, $3); }
 |   expr TK_DIVIDE expr
+    { $$ = ast_op_expr($1, AST_DIVIDE, $3); }
 |   expr TK_EQ expr
+    { $$ = ast_op_expr($1, AST_EQ, $3); }
 |   expr TK_NEQ expr
+    { $$ = ast_op_expr($1, AST_NEQ, $3); }
 |   expr TK_LT expr
+    { $$ = ast_op_expr($1, AST_LT, $3); }
 |   expr TK_LE expr
+    { $$ = ast_op_expr($1, AST_LE, $3); }
 |   expr TK_GT expr
+    { $$ = ast_op_expr($1, AST_GT, $3); }
 |   expr TK_GE expr
+    { $$ = ast_op_expr($1, AST_GE, $3); }
 |   expr TK_AND expr
+    { $$ = ast_op_expr($1, AST_AND, $3); }
 |   expr TK_OR expr
+    { $$ = ast_op_expr($1, AST_OR, $3); }
 |   id TK_LBRACE TK_RBRACE
-|   id TK_LBRACE id TK_EQ expr field_seq TK_RBRACE
+    { $$ = ast_record_expr($1, NULL); }
+|   id TK_LBRACE id TK_EQ expr efield_seq TK_RBRACE
+    { $$ = ast_record_expr($1, list(ast_efield($3, $5), $6)); }
 |   id TK_LBRACK expr TK_RBRACK TK_OF expr
+    { $$ = ast_array_expr($1, $3, $6); }
 |   lvalue TK_ASSIGN expr
+    { $$ = ast_assign_expr($1, $3); }
 |   TK_IF expr TK_THEN expr
+    { $$ = ast_if_expr($2, $4, NULL); }
 |   TK_IF expr TK_THEN expr TK_ELSE expr
+    { $$ = ast_if_expr($2, $4, $6); }
 |   TK_WHILE expr TK_DO expr
+    { $$ = ast_while_expr($2, $4); }
 |   TK_FOR id TK_ASSIGN expr TK_TO expr TK_DO expr
+    { $$ = ast_for_expr($2, $4, $6, $8); }
 |   TK_BREAK
+    { $$ = ast_break_expr(); }
 |   TK_LET decls TK_IN expr TK_END
+    { $$ = ast_let_expr($2, $4); }
 
 decls:
     /* empty */
+    { $$ = NULL; }
 |   decls decl
+    { LIST_ACTION($$, $1, $2); }
 
 decl:
-    type_decls
+    types_decl
+    { $$ = ast_types_decl($1); }
 |   var_decl
-|   func_decls
+|   funcs_decl
+    { $$ = ast_funcs_decl($1); }
 
-type_decls:
+types_decl:
     TK_TYPE id TK_EQ type
-|   type_decls TK_TYPE id TK_EQ type
+    { $$ = list(ast_nametype($2, $4), NULL); }
+|   types_decl TK_TYPE id TK_EQ type
+    { LIST_ACTION($$, $1, ast_nametype($3, $5)); }
 
 type:
     id
+    { $$ = ast_name_type($1); }
 |   TK_LBRACE fields TK_RBRACE
+    { $$ = ast_record_type($2); }
 |   TK_ARRAY TK_OF id
+    { $$ = ast_array_type($3); }
 
 fields:
     /* empty */
-|   id TK_COLON id field_decl_seq
+    { $$ = NULL; }
+|   id TK_COLON id field_seq
+    { $$ = list(ast_field($1, $3), $4); }
 
 var_decl:
     TK_VAR id TK_ASSIGN expr
+    { $$ = ast_var_decl($2, NULL, $4); }
 |   TK_VAR id TK_COLON id TK_ASSIGN expr
+    { $$ = ast_var_decl($2, $4, $6); }
 
-func_decls:
+funcs_decl:
     func_decl
-|   func_decls func_decl
+    { $$ = list($1, NULL); }
+|   funcs_decl func_decl
+    { LIST_ACTION($$, $1, $2); }
 
 func_decl:
     TK_FUNCTION id TK_LPARAN fields TK_RPARAN TK_EQ expr
+    { $$ = ast_func($2, $4, NULL, $7); }
 |   TK_FUNCTION id TK_LPARAN fields TK_RPARAN TK_COLON id TK_EQ expr
+    { $$ = ast_func($2, $4, $7, $9); }
 
 expr_seq:
     TK_SEMICOLON expr
+    { $$ = list($2, NULL); }
 |   expr_seq TK_SEMICOLON expr
+    { LIST_ACTION($$, $1, $3); }
 
-param_seq:
+arg_seq:
     /* empty */
-|   param_seq TK_COMMA expr
+    { $$ = NULL; }
+|   arg_seq TK_COMMA expr
+    { LIST_ACTION($$, $1, $3); }
+
+efield_seq:
+    /* empty */
+    { $$ = NULL; }
+|   efield_seq TK_COMMA id TK_EQ expr
+    { LIST_ACTION($$, $1, ast_efield($3, $5)); }
 
 field_seq:
     /* empty */
-|   field_seq TK_COMMA id TK_EQ expr
-
-field_decl_seq:
-    /* empty */
-|   field_decl_seq TK_COMMA id TK_COLON id
+    { $$ = NULL; }
+|   field_seq TK_COMMA id TK_COLON id
+    { LIST_ACTION($$, $1, ast_field($3, $5)); }
 
 lvalue:
     id lvalue_
+    { LVALUE_ACTION($$, $2, ast_simple_var($1)); }
 
 lvalue_:
     /* empty */
+    { $$ = NULL; }
 |   TK_DOT id lvalue_
+    { LVALUE_ACTION($$, $3, ast_field_var(NULL, $2)); }
 |   TK_LBRACK expr TK_RBRACK lvalue_
+    { LVALUE_ACTION($$, $4, ast_sub_var(NULL, $2)); }
 
 id:
     TK_ID
+    { $$ = symbol($1); }
 
 %%
 
@@ -157,9 +269,6 @@ static void print_token_value(FILE *fp, int type, YYSTYPE value)
             break;
         case TK_INT:
             fprintf(fp, "%d", value.num);
-            break;
-        default:
-            fprintf(fp, "%d", value.pos);
             break;
     }
 }

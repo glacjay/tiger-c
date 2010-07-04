@@ -6,7 +6,7 @@ This project is my practice of the book "Modern Compiler Implementation in C".
 Progress
 ========
 
-Chapter 3 - Program 1:
+Chapter 4 - Program 1: Abstract Syntax
 
-Use Bison to implement a parser for the Tiger language. Appendix A describes,
-among other things, the syntax of Tiger.
+Add semantic actions to your parser to produce abstrace syntax for the Tiger
+language.

@@ -16,3 +16,11 @@ void *checked_malloc(int size)
     assert(p);
     return p;
 }
+
+list_t list(void *data, list_t next)
+{
+    list_t p = checked_malloc(sizeof(*p));
+    p->data = data;
+    p->next = next;
+    return p;
+}

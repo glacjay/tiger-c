@@ -2,9 +2,12 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "ast.h"
 #include "errmsg.h"
-#include "parser.h"
+#include "symbol.h"
 #include "utils.h"
+
+#include "parser.h" /* Must be the last! */
 
 static int _char_pos = 1;
 
@@ -14,7 +17,6 @@ int yywrap(void);
 do \
 { \
     em_tok_pos = _char_pos; \
-    yylval.pos = _char_pos; \
     _char_pos += yyleng; \
 } \
 while (0)
@@ -29,6 +31,8 @@ static void init_buf(void);
 static void append_char(char ch);
 
 %}
+
+%option nounput
 
 %x COMMENT STRING
 
