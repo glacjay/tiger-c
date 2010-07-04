@@ -5,6 +5,8 @@
 #include "parser.h"
 #include "utils.h"
 
+extern int yydebug;
+
 static void parse(string_t filename)
 {
     em_reset(filename);
@@ -22,6 +24,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    // yydebug = 1;
     parse(argv[1]);
 
     return 0;

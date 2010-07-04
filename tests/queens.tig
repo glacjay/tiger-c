@@ -15,7 +15,7 @@ let
     for i := 0 to N-1 do
     (
       for j := 0 to N-1 do
-        print(if col[i] = j then " O" else " ."
+        print(if col[i] = j then " O" else " .");
       print("\n")
     );
     print("\n")
@@ -42,7 +42,7 @@ let
           try(c+1);
           row[r] := 0;
           diag1[r+c] := 0;
-          diag2[r+7-c] := 0;
+          diag2[r+7-c] := 0
         )
   )
 
