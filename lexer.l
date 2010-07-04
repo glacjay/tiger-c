@@ -3,27 +3,28 @@
 #include <string.h>
 
 #include "errmsg.h"
-#include "tokens.h"
+#include "parser.h"
 #include "utils.h"
 
-static int lex_char_pos = 1;
+static int _char_pos = 1;
 
 int yywrap(void);
 
 #define ADJ \
 do \
 { \
-    em_tok_pos = lex_char_pos; \
-    lex_char_pos += yyleng; \
+    em_tok_pos = _char_pos; \
+    yylval.pos = _char_pos; \
+    _char_pos += yyleng; \
 } \
 while (0)
 
-static int comment_level = 0;
+static int _comment_level = 0;
 
 #define INIT_LEN 32
-static string_t str_buf;
-static int str_len;
-static int str_cap;
+static string_t _str_buf;
+static int _str_len;
+static int _str_cap;
 static void init_buf(void);
 static void append_char(char ch);
 
@@ -36,16 +37,16 @@ static void append_char(char ch);
 [ \t\f\v\r]             { ADJ; }
 \n                      { ADJ; em_newline(); }
 
-"/*"                    { ADJ; comment_level = 1; BEGIN(COMMENT); }
+"/*"                    { ADJ; _comment_level = 1; BEGIN(COMMENT); }
 <COMMENT>[^*/\n]*       { ADJ; }
 <COMMENT>"*"+[^*/\n]*   { ADJ; }
 <COMMENT>"/"+[^*/\n]*   { ADJ; }
 <COMMENT>\n             { ADJ; em_newline(); }
-<COMMENT>"/"+"*"        { ADJ; comment_level++; }
+<COMMENT>"/"+"*"        { ADJ; _comment_level++; }
 <COMMENT>"*"+"/"        {
     ADJ;
-    comment_level--;
-    if (comment_level <= 0)
+    _comment_level--;
+    if (_comment_level <= 0)
         BEGIN(INITIAL);
 }
 
@@ -98,7 +99,7 @@ type                    { ADJ; return TK_TYPE; }
 <STRING>\"              {
     ADJ;
     BEGIN(INITIAL);
-    yylval.str = str_buf;
+    yylval.str = _str_buf;
     return TK_STRING;
 }
 <STRING>\n              { ADJ; em_newline(); }
@@ -130,30 +131,30 @@ type                    { ADJ; return TK_TYPE; }
 
 int yywrap(void)
 {
-    lex_char_pos = 1;
+    _char_pos = 1;
     return 1;
 }
 
 static void init_buf(void)
 {
-    str_buf = checked_malloc(INIT_LEN);
-    str_buf[0] = 0;
-    str_len = 0;
-    str_cap = INIT_LEN;
+    _str_buf = checked_malloc(INIT_LEN);
+    _str_buf[0] = 0;
+    _str_len = 0;
+    _str_cap = INIT_LEN;
 }
 
 static void append_char(char ch)
 {
-    if (++str_len == str_cap)
+    if (++_str_len == _str_cap)
     {
         char *p;
 
-        str_cap *= 2;
-        p = checked_malloc(str_cap);
-        memcpy(p, str_buf, str_len);
-        free(str_buf);
-        str_buf = p;
+        _str_cap *= 2;
+        p = checked_malloc(_str_cap);
+        memcpy(p, _str_buf, _str_len);
+        free(_str_buf);
+        _str_buf = p;
     }
-    str_buf[str_len - 1] = ch;
-    str_buf[str_len] = 0;
+    _str_buf[_str_len - 1] = ch;
+    _str_buf[_str_len] = 0;
 }

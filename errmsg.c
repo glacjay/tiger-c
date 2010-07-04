@@ -3,21 +3,21 @@
 #include <stdlib.h>
 
 #include "errmsg.h"
-#include "utils.h"
 
 bool em_any_errors = false;
 int em_tok_pos = 0;
+
 extern FILE *yyin;
 
-static string_t filename = "";
-static int line_num = 1;
+static string_t _filename = "";
+static int _line_num = 1;
 
 typedef struct int_list_s
 {
     int i;
     struct int_list_s *next;
 } *int_list_t;
-static int_list_t line_pos = NULL;
+static int_list_t _line_pos = NULL;
 
 static int_list_t int_list(int i, int_list_t next)
 {
@@ -29,43 +29,42 @@ static int_list_t int_list(int i, int_list_t next)
 
 void em_newline(void)
 {
-    ++line_num;
-    line_pos = int_list(em_tok_pos, line_pos);
+    ++_line_num;
+    _line_pos = int_list(em_tok_pos, _line_pos);
 }
 
 void em_error(int pos, string_t msg, ...)
 {
     va_list ap;
-    int_list_t lines = line_pos;
-    int num = line_num;
+    int_list_t lines = _line_pos;
+    int line = _line_num;
 
     em_any_errors = true;
     while (lines && lines->i >= pos)
     {
         lines = lines->next;
-        --num;
+        --line;
     }
 
-    if (filename)
-        fprintf(stderr, "%s:", filename);
-    if (lines)
-        fprintf(stderr, "%d.%d: ", num, pos - lines->i);
+    if (_filename)
+        fprintf(stderr, "%s:", _filename);
+    fprintf(stderr, "%d.%d: ", line, lines ? pos - lines->i : pos);
     va_start(ap, msg);
     vfprintf(stderr, msg, ap);
     va_end(ap);
     fprintf(stderr, "\n");
 }
 
-void em_reset(string_t file)
+void em_reset(string_t filename)
 {
     em_any_errors = false;
-    filename = file;
-    line_num = 1;
-    line_pos = int_list(0, NULL);
-    yyin = fopen(file, "r");
+    _filename = filename;
+    _line_num = 1;
+    _line_pos = int_list(0, NULL);
+    yyin = fopen(_filename, "r");
     if (!yyin)
     {
-        em_error(0, "cannot open file: %s", file);
+        em_error(0, "cannot open file: %s", _filename);
         exit(1);
     }
 }
