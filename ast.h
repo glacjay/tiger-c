@@ -52,7 +52,7 @@ struct ast_expr_s
         string_t str;
         struct { symbol_t func; list_t args; } call;
         struct { ast_expr_t left; ast_binop_t op; ast_expr_t right; } op;
-        struct { symbol_t type; list_t fields; } record;
+        struct { symbol_t type; list_t efields; } record;
         struct { symbol_t type; ast_expr_t size, init; } array;
         list_t seq;
         struct { ast_expr_t cond, then, else_; } if_;
@@ -69,7 +69,7 @@ ast_expr_t ast_num_expr(int num);
 ast_expr_t ast_string_expr(string_t str);
 ast_expr_t ast_call_expr(symbol_t func, list_t args);
 ast_expr_t ast_op_expr(ast_expr_t left, ast_binop_t op, ast_expr_t right);
-ast_expr_t ast_record_expr(symbol_t type, list_t fields);
+ast_expr_t ast_record_expr(symbol_t type, list_t efields);
 ast_expr_t ast_array_expr(symbol_t type, ast_expr_t size, ast_expr_t init);
 ast_expr_t ast_seq_expr(list_t seq);
 ast_expr_t ast_if_expr(ast_expr_t cond, ast_expr_t then, ast_expr_t else_);

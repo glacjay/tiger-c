@@ -76,12 +76,12 @@ ast_expr_t ast_op_expr(ast_expr_t left, ast_binop_t op, ast_expr_t right)
     return p;
 }
 
-ast_expr_t ast_record_expr(symbol_t type, list_t fields)
+ast_expr_t ast_record_expr(symbol_t type, list_t efields)
 {
     ast_expr_t p = checked_malloc(sizeof(*p));
     p->kind = AST_RECORD_EXPR;
     p->u.record.type = type;
-    p->u.record.fields = fields;
+    p->u.record.efields = efields;
     return p;
 }
 
