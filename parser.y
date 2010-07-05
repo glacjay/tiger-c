@@ -57,6 +57,8 @@ static void print_token_value(FILE *fp, int type, YYSTYPE value);
             (target) = var; \
     } \
     while (false)
+
+static ast_expr_t _program;
 %}
 
 %debug
@@ -93,7 +95,7 @@ static void print_token_value(FILE *fp, int type, YYSTYPE value);
 
 program:
     expr
-    { $$ = $1; }
+    { _program = $1; }
 
 expr:
     lvalue
@@ -271,4 +273,13 @@ static void print_token_value(FILE *fp, int type, YYSTYPE value)
             fprintf(fp, "%d", value.num);
             break;
     }
+}
+
+ast_expr_t parse(string_t filename)
+{
+    em_reset(filename);
+    if (yyparse() == 0)
+        return _program;
+    else
+        return NULL;
 }

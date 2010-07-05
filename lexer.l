@@ -5,9 +5,8 @@
 #include "ast.h"
 #include "errmsg.h"
 #include "symbol.h"
+#include "parser.h"
 #include "utils.h"
-
-#include "parser.h" /* Must be the last! */
 
 static int _char_pos = 1;
 
