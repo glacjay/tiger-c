@@ -12,17 +12,11 @@ extern FILE *yyin;
 static string_t _filename = "";
 static int _line_num = 1;
 
-typedef struct int_list_s *int_list_t;
-struct int_list_s
-{
-    int i;
-    struct int_list_s *next;
-};
-static int_list_t _line_pos = NULL;
+static list_t _line_pos = NULL;
 
-static int_list_t int_list(int i, int_list_t next)
+static list_t int_list(int i, list_t next)
 {
-    int_list_t p = checked_malloc(sizeof(*p));
+    list_t p = checked_malloc(sizeof(*p));
     p->i = i;
     p->next = next;
     return p;
@@ -37,7 +31,7 @@ void em_newline(void)
 void em_error(int pos, string_t msg, ...)
 {
     va_list ap;
-    int_list_t lines = _line_pos;
+    list_t lines = _line_pos;
     int line = _line_num;
 
     em_any_errors = true;
