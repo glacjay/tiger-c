@@ -4,8 +4,6 @@
 
 #include "symbol.h"
 
-#define HT_SIZE 109 /* may be prime */
-
 static symbol_t _symbols[HT_SIZE];
 
 static symbol_t mk_symbol(string_t name, symbol_t next)
@@ -44,74 +42,39 @@ string_t sym_name(symbol_t sym)
     return (string_t) sym->data;
 }
 
-typedef struct binder_s
-{
-    symbol_t sym;
-    void *value;
-    symbol_t prev;
-} *binder_t;
-
-struct table_s
-{
-    list_t table[HT_SIZE];
-    symbol_t top;
-};
-
 table_t sym_empty(void)
 {
-    table_t tab = checked_malloc(sizeof(*tab));
-    int i;
-
-    tab->top = NULL;
-    for (i = 0; i < HT_SIZE; i++)
-        tab->table[i] = NULL;
-    return tab;
-}
-
-static binder_t binder(symbol_t sym, void* value, symbol_t prev)
-{
-    binder_t b = checked_malloc(sizeof(*b));
-    b->sym = sym;
-    b->value = value;
-    b->prev = prev;
-    return b;
+    return tab_empty();
 }
 
 void sym_enter(table_t tab, symbol_t sym, void *value)
 {
-    long index;
-    binder_t b;
-
-    assert(tab && sym);
-    index = ((long) sym) % HT_SIZE;
-    b = binder(sym, value, tab->top);
-    tab->table[index] = list(b, tab->table[index]);
-    tab->top = sym;
+    tab_enter(tab, sym, value);
 }
 
 void *sym_lookup(table_t tab, symbol_t sym)
 {
-    long index;
-    list_t p;
-
-    assert(tab && sym);
-    index = ((long) sym) % HT_SIZE;
-    for (p = tab->table[index]; p; p = p->next)
-    {
-        binder_t b = (binder_t) p->data;
-        if (b->sym == sym)
-            return b->value;
-    }
-    return NULL;
+    return tab_lookup(tab, sym);
 }
 
-table_t sym_begin_scope(table_t tab)
+static symbol_t _mark_sym = NULL;
+
+void sym_begin_scope(table_t tab)
 {
-    /* TODO */
-    return NULL;
+    if (!_mark_sym)
+    {
+        _mark_sym = checked_malloc(sizeof(*_mark_sym));
+        _mark_sym->data = "<mark>";
+        _mark_sym->next = NULL;
+    }
+    sym_enter(tab, _mark_sym, NULL);
 }
 
 void sym_end_scope(table_t tab)
 {
-    /* TODO */
+    symbol_t sym;
+
+    do
+        sym = tab_pop(tab);
+    while (sym != _mark_sym);
 }

@@ -10,6 +10,8 @@ typedef char bool;
 #define true 1
 #define false 0
 
+#define HT_SIZE 773
+
 void *checked_malloc(int);
 
 typedef struct list_s *list_t;
