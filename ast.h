@@ -14,12 +14,13 @@ typedef struct ast_field_s *ast_field_t;
 typedef struct ast_func_s *ast_func_t;
 typedef struct ast_nametype_s *ast_nametype_t;
 
-typedef enum
+typedef enum ast_binop_e ast_binop_t;
+enum ast_binop_e
 {
     AST_PLUS, AST_MINUS, AST_TIMES, AST_DIVIDE,
     AST_EQ, AST_NEQ, AST_LT, AST_LE, AST_GT, AST_GE,
     AST_AND, AST_OR,
-} ast_binop_t;
+};
 
 struct ast_decl_s
 {

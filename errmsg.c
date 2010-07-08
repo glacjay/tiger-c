@@ -12,11 +12,12 @@ extern FILE *yyin;
 static string_t _filename = "";
 static int _line_num = 1;
 
-typedef struct int_list_s
+typedef struct int_list_s *int_list_t;
+struct int_list_s
 {
     int i;
     struct int_list_s *next;
-} *int_list_t;
+};
 static int_list_t _line_pos = NULL;
 
 static int_list_t int_list(int i, int_list_t next)
