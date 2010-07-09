@@ -15,7 +15,7 @@ int yywrap(void);
 #define ADJ \
 do \
 { \
-    em_tok_pos = _char_pos; \
+    em_tok_pos = yylval.pos = _char_pos; \
     _char_pos += yyleng; \
 } \
 while (0)
