@@ -11,16 +11,7 @@ extern FILE *yyin;
 
 static string_t _filename = "";
 static int _line_num = 1;
-
 static list_t _line_pos = NULL;
-
-static list_t int_list(int i, list_t next)
-{
-    list_t p = checked_malloc(sizeof(*p));
-    p->i = i;
-    p->next = next;
-    return p;
-}
 
 void em_newline(void)
 {

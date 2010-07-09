@@ -24,3 +24,19 @@ list_t list(void *data, list_t next)
     p->next = next;
     return p;
 }
+
+list_t int_list(int i, list_t next)
+{
+    list_t p = checked_malloc(sizeof(*p));
+    p->i = i;
+    p->next = next;
+    return p;
+}
+
+list_t bool_list(bool b, list_t next)
+{
+    list_t p = checked_malloc(sizeof(*p));
+    p->b = b;
+    p->next = next;
+    return p;
+}
