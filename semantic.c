@@ -164,6 +164,10 @@ static void trans_var_decl(ast_decl_t decl)
             em_error(decl->pos,
                      "initializer has incorrect type");
     }
+    else if (init.type->kind == TY_NIL)
+        em_error(decl->pos, "don't know which record type to take");
+    else if (init.type->kind == TY_VOID)
+        em_error(decl->pos, "can't assign void value to a variable");
     sym_enter(_venv, decl->u.var.var, env_var_entry(type, false));
 }
 
