@@ -157,10 +157,9 @@ static void trans_var_decl(ast_decl_t decl)
         type = lookup_type(decl->u.var.type, decl->pos);
         if (!type)
             type = ty_int();
-        type = ty_actual(type);
         if (!ty_match(type, init.type))
             em_error(decl->pos,
-                     "initializer doesn't match variable declaration's type");
+                     "initializer has incorrect type");
     }
     sym_enter(_venv, decl->u.var.var, env_var_entry(type));
 }
@@ -219,19 +218,22 @@ static expr_type_t trans_call_expr(ast_expr_t expr)
                  sym_name(expr->u.call.func));
         return expr_type(NULL, ty_int());
     }
+
     for (p = entry->u.func.formals, q = expr->u.call.args, i = 1;
          p && q;
          p = p->next, q = q->next, i++)
     {
         expr_type_t et = trans_expr((ast_expr_t) q->data);
-        if (ty_actual((type_t) p->data) != et.type)
+        if (!ty_match(p->data, et.type))
             em_error(expr->pos,
-                     "passing argument %d of '%s' from wrong type",
+                     "passing argument %d of '%s' with wrong type",
                      i,
                      sym_name(expr->u.call.func));
     }
-    if (p || q)
-        em_error(expr->pos, "wrong number of arguments");
+    if (p)
+        em_error(expr->pos, "expect more arguments");
+    else if (q)
+        em_error(expr->pos, "expect less arguments");
     return expr_type(NULL, ty_actual(entry->u.func.result));
 }
 
@@ -251,27 +253,21 @@ static expr_type_t trans_op_expr(ast_expr_t expr)
             if (left.type->kind != TY_INT)
                 em_error(expr->u.op.left->pos, "integer required");
             if (right.type->kind != TY_INT)
-            {
                 em_error(expr->u.op.right->pos, "integer required");
-            }
             return expr_type(NULL, ty_int());
 
         case AST_EQ:
         case AST_NEQ:
-            if (left.type == right.type)
-                return expr_type(NULL, ty_int());
-            if (left.type->kind == TY_RECORD && right.type->kind == TY_NIL)
-                return expr_type(NULL, ty_int());
-            if (left.type->kind == TY_NIL && right.type->kind == TY_RECORD)
-                return expr_type(NULL, ty_int());
-            em_error(expr->pos, "the type of two operands must be the same");
+            if (!ty_match(left.type, right.type))
+                em_error(expr->pos,
+                         "the type of two operands must be the same");
             return expr_type(NULL, ty_int());
 
         case AST_LT:
         case AST_LE:
         case AST_GT:
         case AST_GE:
-            if (left.type != right.type)
+            if (!ty_match(left.type, right.type))
                 em_error(expr->pos,
                          "the type of two operands must be the same");
             if (left.type->kind != TY_INT && left.type->kind != TY_STRING)
@@ -285,29 +281,23 @@ static expr_type_t trans_op_expr(ast_expr_t expr)
 
 static expr_type_t trans_record_expr(ast_expr_t expr)
 {
-    type_t type = sym_lookup(_tenv, expr->u.record.type);
+    type_t type = lookup_type(expr->u.record.type, expr->pos);
     list_t p, q;
 
     if (!type)
-    {
-        em_error(expr->pos, "undefined type '%s'", sym_name(expr->u.record.type));
         return expr_type(NULL, ty_nil());
-    }
-    type = ty_actual(type);
     if (type->kind != TY_RECORD)
-    {
         em_error(expr->pos,
                  "'%s' is not a record type",
                  sym_name(expr->u.record.type));
-    }
     for (p = type->u.record, q = expr->u.record.efields;
          p && q;
          p = p->next, q = q->next)
     {
-        expr_type_t et = trans_expr(((ast_efield_t) q->data)->expr);
+        ast_efield_t efield = q->data;
+        expr_type_t et = trans_expr(efield->expr);
         if (!ty_match(((ty_field_t) p->data)->type, et.type))
-            em_error(((ast_efield_t) q->data)->pos,
-                     "wrong field type");
+            em_error(efield->pos, "wrong field type");
     }
     if (p || q)
         em_error(expr->pos, "wrong field number");
@@ -316,21 +306,21 @@ static expr_type_t trans_record_expr(ast_expr_t expr)
 
 static expr_type_t trans_array_expr(ast_expr_t expr)
 {
-    type_t type = ty_actual(sym_lookup(_tenv, expr->u.array.type));
+    type_t type = lookup_type(expr->u.array.type, expr->pos);
     expr_type_t size = trans_expr(expr->u.array.size);
     expr_type_t init = trans_expr(expr->u.array.init);
+
+    if (!type)
+        return expr_type(NULL, ty_int());
     if (type->kind != TY_ARRAY)
         em_error(expr->pos,
-                 "'%s' is not array type",
+                 "'%s' is not an array type",
                  sym_name(expr->u.array.type));
     if (size.type->kind != TY_INT)
-        em_error(expr->pos, "size must be integer type");
+        em_error(expr->pos, "array's size must be the int type");
     if (!ty_match(type->u.array, init.type))
-    {
-        em_error(expr->pos,
-                 "initializer expression's type is incorrect");
-    }
-    return expr_type(NULL, ty_actual(type));
+        em_error(expr->pos, "initializer has incorrect type");
+    return expr_type(NULL, type);
 }
 
 static expr_type_t trans_seq_expr(ast_expr_t expr)
@@ -349,20 +339,20 @@ static expr_type_t trans_if_expr(ast_expr_t expr)
 {
     expr_type_t cond = trans_expr(expr->u.if_.cond);
     expr_type_t then = trans_expr(expr->u.if_.then);
+
     if (cond.type->kind != TY_INT)
         em_error(expr->pos,
-                 "the type of if statement's condition must be integer");
+                 "condition's type must be integer");
     if (expr->u.if_.else_)
     {
         expr_type_t else_ = trans_expr(expr->u.if_.else_);
         if (!ty_match(then.type, else_.type))
-            em_error(expr->pos,
-                     "the type of if statement's two substatement must be the same");
+            em_error(expr->pos, "types of then and else differ");
+        return expr_type(NULL, then.type);
     }
     else if (then.type->kind != TY_VOID)
-        em_error(expr->pos,
-                 "then clause's type must be void if there is no else clause");
-    return expr_type(NULL, then.type);
+        em_error(expr->pos, "if-then should return nothing");
+    return expr_type(NULL, ty_void());
 }
 
 static expr_type_t trans_while_expr(ast_expr_t expr)
@@ -370,11 +360,9 @@ static expr_type_t trans_while_expr(ast_expr_t expr)
     expr_type_t cond = trans_expr(expr->u.while_.cond);
     expr_type_t body = trans_expr(expr->u.while_.body);
     if (cond.type->kind != TY_INT)
-        em_error(expr->pos,
-                 "the type of while statement's condition must be integer");
+        em_error(expr->pos, "condition's type must be integer");
     if (body.type->kind != TY_VOID)
-        em_error(expr->pos,
-                 "the body of while statement must produce no value");
+        em_error(expr->pos, "while should return nothing");
     return expr_type(NULL, ty_void());
 }
 
@@ -384,23 +372,22 @@ static expr_type_t trans_for_expr(ast_expr_t expr)
     expr_type_t hi = trans_expr(expr->u.for_.hi);
     expr_type_t body;
     if (lo.type->kind != TY_INT)
-        em_error(expr->pos,
-                 "the type of for statement's low range expression must be int");
+        em_error(expr->pos, "lo expression should be int type");
     if (hi.type->kind != TY_INT)
-        em_error(expr->pos,
-                 "the type of for statement's high range expression must be int");
+        em_error(expr->pos, "hi expression should be int type");
     sym_begin_scope(_venv);
     sym_enter(_venv, expr->u.for_.var, env_var_entry(ty_int()));
+    /* TODO Check assignment to the variable. */
     body = trans_expr(expr->u.for_.body);
     if (body.type->kind != TY_VOID)
-        em_error(expr->pos,
-                 "the body of for statement must produce no value");
+        em_error(expr->pos, "for should return nothing");
     sym_end_scope(_venv);
     return expr_type(NULL, ty_void());
 }
 
 static expr_type_t trans_break_expr(ast_expr_t expr)
 {
+    /* TODO Check for outer for or while statement. */
     return expr_type(NULL, ty_void());
 }
 
@@ -423,13 +410,9 @@ static expr_type_t trans_assign_expr(ast_expr_t expr)
 {
     expr_type_t var = trans_var(expr->u.assign.var);
     expr_type_t et = trans_expr(expr->u.assign.expr);
-    if (var.type != et.type &&
-        (var.type->kind != TY_RECORD || et.type->kind != TY_NIL))
-    {
-        em_error(expr->pos,
-                 "the types of variable and expression are not match");
-    }
-    /* TODO check assignment to for variable */
+    if (!ty_match(var.type, et.type))
+        em_error(expr->pos, "type mismatch");
+    /* TODO Check assignment to the for variable. */
     return expr_type(NULL, ty_void());
 }
 
@@ -460,14 +443,9 @@ static expr_type_t trans_expr(ast_expr_t expr)
 
 static type_t trans_name_type(ast_type_t type)
 {
-    type_t t = sym_lookup(_tenv, type->u.name);
+    type_t t = lookup_type(type->u.name, type->pos);
     if (!t)
-    {
-        em_error(type->pos,
-                 "undefined type '%s'",
-                 sym_name(type->u.name));
         t = ty_int();
-    }
     return t;
 }
 
@@ -479,15 +457,10 @@ static type_t trans_record_type(ast_type_t type)
     for (; p; p = p->next)
     {
         ast_field_t field = p->data;
-        type_t t = sym_lookup(_tenv, field->type);
+        type_t t = lookup_type(field->type, type->pos);
 
         if (!t)
-        {
-            em_error(type->pos,
-                     "undefined type '%s'",
-                     sym_name(field->type));
             t = ty_int();
-        }
         if (r)
         {
             r->next = list(ty_field(field->name, t), NULL);
@@ -501,14 +474,9 @@ static type_t trans_record_type(ast_type_t type)
 
 static type_t trans_array_type(ast_type_t type)
 {
-    type_t t = sym_lookup(_tenv, type->u.array);
+    type_t t = lookup_type(type->u.array, type->pos);
     if (!t)
-    {
-        em_error(type->pos,
-                 "undefined type '%s'",
-                 sym_name(type->u.array));
         t = ty_int();
-    }
     return ty_array(t);
 }
 
@@ -530,9 +498,7 @@ static expr_type_t trans_simple_var(ast_var_t var)
     env_entry_t entry = sym_lookup(_venv, var->u.simple);
     if (!entry)
     {
-        em_error(var->pos,
-                 "undefined variable: '%s'",
-                 sym_name(var->u.simple));
+        em_error(var->pos, "undefined variable '%s'", sym_name(var->u.simple));
         return expr_type(NULL, ty_int());
     }
     else if (entry->kind != ENV_VAR_ENTRY)
@@ -557,9 +523,11 @@ static expr_type_t trans_field_var(ast_var_t var)
         return expr_type(NULL, ty_int());
     }
     for (p = et.type->u.record; p; p = p->next)
-        if (((ty_field_t) p->data)->name == var->u.field.field)
-            return expr_type(NULL,
-                             ty_actual(((ty_field_t) p->data)->type));
+    {
+        ty_field_t field = p->data;
+        if (field->name == var->u.field.field)
+            return expr_type(NULL, ty_actual(field->type));
+    }
     em_error(var->pos,
              "there is no field named '%s'",
              sym_name(var->u.field.field));
@@ -570,16 +538,14 @@ static expr_type_t trans_sub_var(ast_var_t var)
 {
     expr_type_t et = trans_var(var->u.sub.var);
     expr_type_t sub = trans_expr(var->u.sub.sub);
+
     if (et.type->kind != TY_ARRAY)
     {
         em_error(var->pos, "expected array type variable");
         return expr_type(NULL, ty_int());
     }
     if (sub.type->kind != TY_INT)
-    {
         em_error(var->pos, "expected integer type subscript");
-        return expr_type(NULL, ty_actual(et.type->u.array));
-    }
     return expr_type(NULL, ty_actual(et.type->u.array));
 }
 

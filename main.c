@@ -19,12 +19,8 @@ int main(int argc, char **argv)
     }
 
     /* yydebug = 1; */
-    if ((result = parse(argv[1])))
-    {
+    if ((result = parse(argv[1])) && !em_any_errors)
         sem_trans_prog(result);
-    }
-    else
-        fprintf(stderr, "Parsing failed.\n");
 
     return 0;
 }
