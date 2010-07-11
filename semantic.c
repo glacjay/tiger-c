@@ -75,7 +75,18 @@ static list_t formal_type_list(list_t params, int pos)
 
 static void trans_funcs_decl(ast_decl_t decl)
 {
-    list_t p;
+    list_t p, q;
+
+    /* Check for function redefinitions. */
+    for (p = decl->u.funcs; p && p->next; p = p->next)
+        for (q = p->next; q; q = q->next)
+        {
+            ast_func_t func = q->data;
+            if (((ast_func_t) p->data)->name == func->name)
+                em_error(func->pos,
+                         "function '%s' redefined",
+                         sym_name(func->name));
+        }
 
     /* Enter function prototypes into symbol table. */
     for (p = decl->u.funcs; p; p = p->next)
@@ -121,7 +132,16 @@ static void trans_funcs_decl(ast_decl_t decl)
 
 static void trans_types_decl(ast_decl_t decl)
 {
-    list_t p;
+    list_t p, q;
+
+    /* Check for type redefinitions. */
+    for (p = decl->u.types; p && p->next; p = p->next)
+        for (q = p->next; q; q = q->next)
+        {
+            ast_nametype_t nt = q->data;
+            if (((ast_nametype_t) p->data)->name == nt->name)
+                em_error(decl->pos, "type '%s' redefined", sym_name(nt->name));
+        }
 
     /* Enter type placeholder into symbol table. */
     for (p = decl->u.types; p; p = p->next)
