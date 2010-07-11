@@ -453,9 +453,12 @@ static expr_type_t trans_expr(ast_expr_t expr)
 
 static type_t trans_name_type(ast_type_t type)
 {
-    type_t t = lookup_type(type->u.name, type->pos);
+    type_t t = sym_lookup(_tenv, type->u.name);
     if (!t)
+    {
+        em_error(type->pos, "undefined type '%s'", sym_name(type->u.name));
         t = ty_int();
+    }
     return t;
 }
 
@@ -467,10 +470,13 @@ static type_t trans_record_type(ast_type_t type)
     for (; p; p = p->next)
     {
         ast_field_t field = p->data;
-        type_t t = lookup_type(field->type, type->pos);
+        type_t t = sym_lookup(_tenv, field->type);
 
         if (!t)
+        {
+            em_error(type->pos, "undefined type '%s'", sym_name(field->type));
             t = ty_int();
+        }
         if (r)
         {
             r->next = list(ty_field(field->name, t), NULL);
@@ -484,9 +490,12 @@ static type_t trans_record_type(ast_type_t type)
 
 static type_t trans_array_type(ast_type_t type)
 {
-    type_t t = lookup_type(type->u.array, type->pos);
+    type_t t = sym_lookup(_tenv, type->u.array);
     if (!t)
+    {
+        em_error(type->pos, "undefined type '%s'", type->u.array);
         t = ty_int();
+    }
     return ty_array(t);
 }
 
