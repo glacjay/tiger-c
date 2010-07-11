@@ -5,6 +5,7 @@
 #include "errmsg.h"
 #include "parser-wrap.h"
 #include "ppast.h"
+#include "semantic.h"
 #include "utils.h"
 
 int main(int argc, char **argv)
@@ -20,8 +21,7 @@ int main(int argc, char **argv)
     /* yydebug = 1; */
     if ((result = parse(argv[1])))
     {
-        printf("Parsing successful!\n");
-        pp_expr(stdout, 0, result);
+        sem_trans_prog(result);
     }
     else
         fprintf(stderr, "Parsing failed.\n");
