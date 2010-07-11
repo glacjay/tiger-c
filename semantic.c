@@ -102,6 +102,7 @@ static void trans_funcs_decl(ast_decl_t decl)
         env_entry_t entry = sym_lookup(_venv, func->name);
         list_t q = func->params;
         list_t r = entry->u.func.formals;
+        expr_type_t result;
 
         sym_begin_scope(_venv);
         for (; q; q = q->next, r = r->next)
@@ -111,7 +112,9 @@ static void trans_funcs_decl(ast_decl_t decl)
                       env_var_entry(r->data, false));
         }
         assert(!q && !r);
-        trans_expr(func->body);
+        result = trans_expr(func->body);
+        if (!ty_match(result.type, entry->u.func.result))
+            em_error(func->pos, "function body's type is incorrect");
         sym_end_scope(_venv);
     }
 }
