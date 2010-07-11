@@ -10,11 +10,11 @@ struct env_entry_s
     enum { ENV_VAR_ENTRY, ENV_FUNC_ENTRY } kind;
     union
     {
-        struct { type_t type; } var;
+        struct { type_t type; bool for_; } var;
         struct { list_t formals; type_t result; } func;
     } u;
 };
-env_entry_t env_var_entry(type_t type);
+env_entry_t env_var_entry(type_t type, bool for_);
 env_entry_t env_func_entry(list_t formals, type_t result);
 
 table_t env_base_tenv(void);

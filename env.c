@@ -2,11 +2,12 @@
 
 #include "env.h"
 
-env_entry_t env_var_entry(type_t type)
+env_entry_t env_var_entry(type_t type, bool for_)
 {
     env_entry_t p = checked_malloc(sizeof(*p));
     p->kind = ENV_VAR_ENTRY;
     p->u.var.type = type;
+    p->u.var.for_ = for_;
     return p;
 }
 

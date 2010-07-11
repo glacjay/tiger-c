@@ -108,7 +108,7 @@ static void trans_funcs_decl(ast_decl_t decl)
         {
             sym_enter(_venv,
                       ((ast_field_t) q->data)->name,
-                      env_var_entry(r->data));
+                      env_var_entry(r->data, false));
         }
         assert(!q && !r);
         trans_expr(func->body);
@@ -161,7 +161,7 @@ static void trans_var_decl(ast_decl_t decl)
             em_error(decl->pos,
                      "initializer has incorrect type");
     }
-    sym_enter(_venv, decl->u.var.var, env_var_entry(type));
+    sym_enter(_venv, decl->u.var.var, env_var_entry(type, false));
 }
 
 typedef void (*trans_decl_func)(ast_decl_t);
@@ -376,7 +376,7 @@ static expr_type_t trans_for_expr(ast_expr_t expr)
     if (hi.type->kind != TY_INT)
         em_error(expr->pos, "hi expression should be int type");
     sym_begin_scope(_venv);
-    sym_enter(_venv, expr->u.for_.var, env_var_entry(ty_int()));
+    sym_enter(_venv, expr->u.for_.var, env_var_entry(ty_int(), true));
     /* TODO Check assignment to the variable. */
     body = trans_expr(expr->u.for_.body);
     if (body.type->kind != TY_VOID)
@@ -410,9 +410,19 @@ static expr_type_t trans_assign_expr(ast_expr_t expr)
 {
     expr_type_t var = trans_var(expr->u.assign.var);
     expr_type_t et = trans_expr(expr->u.assign.expr);
+
     if (!ty_match(var.type, et.type))
         em_error(expr->pos, "type mismatch");
-    /* TODO Check assignment to the for variable. */
+
+    if (expr->u.assign.var->kind == AST_SIMPLE_VAR && var.type->kind == TY_INT)
+    {
+        /* Check for the assignment to the for variable. */
+        ast_var_t v = expr->u.assign.var;
+        env_entry_t entry = sym_lookup(_venv, v->u.simple);
+        if (entry && entry->kind == ENV_VAR_ENTRY && entry->u.var.for_)
+            em_error(expr->pos, "assigning to the for variable");
+    }
+
     return expr_type(NULL, ty_void());
 }
 
