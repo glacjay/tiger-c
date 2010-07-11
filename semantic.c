@@ -8,6 +8,9 @@
 
 typedef void *tr_expr_t;
 
+static table_t _venv;
+static table_t _tenv;
+
 typedef struct expr_type_s expr_type_t;
 struct expr_type_s
 {
@@ -23,10 +26,10 @@ static expr_type_t expr_type(tr_expr_t expr, type_t type)
     return result;
 }
 
-static void trans_decl(table_t venv, table_t tenv, ast_decl_t decl);
-static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr);
-static type_t trans_type(table_t tenv, ast_type_t type);
-static expr_type_t trans_var(table_t venv, table_t tenv, ast_var_t var);
+static void trans_decl(ast_decl_t decl);
+static expr_type_t trans_expr(ast_expr_t expr);
+static type_t trans_type(ast_type_t type);
+static expr_type_t trans_var(ast_var_t var);
 
 #if 0
 static void show_types(void *key, void *value)
@@ -39,7 +42,7 @@ static void show_types(void *key, void *value)
 }
 #endif
 
-static list_t formal_type_list(table_t tenv, list_t params, int pos)
+static list_t formal_type_list(list_t params, int pos)
 {
     list_t p, q, r;
 
@@ -47,7 +50,7 @@ static list_t formal_type_list(table_t tenv, list_t params, int pos)
     for (p = params; p; p = p->next)
     {
         ast_field_t field = p->data;
-        type_t type = sym_lookup(tenv, field->type);
+        type_t type = sym_lookup(_tenv, field->type);
         if (!type)
         {
             em_error(pos, "undefined type '%s'", field->type);
@@ -64,7 +67,7 @@ static list_t formal_type_list(table_t tenv, list_t params, int pos)
     return q;
 }
 
-static void trans_decl(table_t venv, table_t tenv, ast_decl_t decl)
+static void trans_decl(ast_decl_t decl)
 {
     switch (decl->kind)
     {
@@ -75,12 +78,12 @@ static void trans_decl(table_t venv, table_t tenv, ast_decl_t decl)
             for (p = decl->u.funcs; p; p = p->next)
             {
                 func = p->data;
-                list_t formals = formal_type_list(tenv, func->params, decl->pos);
+                list_t formals = formal_type_list(func->params, decl->pos);
                 type_t result;
 
                 if (func->result)
                 {
-                    result = sym_lookup(tenv, func->result);
+                    result = sym_lookup(_tenv, func->result);
                     if (!result)
                     {
                         em_error(decl->pos,
@@ -91,7 +94,7 @@ static void trans_decl(table_t venv, table_t tenv, ast_decl_t decl)
                 }
                 else
                     result = ty_void();
-                sym_enter(venv, func->name, env_func_entry(formals, result));
+                sym_enter(_venv, func->name, env_func_entry(formals, result));
             }
 
             for (p = decl->u.funcs; p; p = p->next)
@@ -100,18 +103,18 @@ static void trans_decl(table_t venv, table_t tenv, ast_decl_t decl)
                 env_entry_t entry;
 
                 func = p->data;
-                entry = sym_lookup(venv, func->name);
-                sym_begin_scope(venv);
+                entry = sym_lookup(_venv, func->name);
+                sym_begin_scope(_venv);
                 for (q = func->params, r = entry->u.func.formals;
                      q && r;
                      q = q->next, r = r->next)
                 {
-                    sym_enter(venv,
+                    sym_enter(_venv,
                               ((ast_field_t) q->data)->name,
                               env_var_entry(r->data));
                 }
-                trans_expr(venv, tenv, func->body);
-                sym_end_scope(venv);
+                trans_expr(func->body);
+                sym_end_scope(_venv);
             }
             break;
         }
@@ -122,24 +125,24 @@ static void trans_decl(table_t venv, table_t tenv, ast_decl_t decl)
             for (p = decl->u.types; p; p = p->next)
             {
                 ast_nametype_t nametype = p->data;
-                sym_enter(tenv, nametype->name, ty_name(nametype->name, NULL));
+                sym_enter(_tenv, nametype->name, ty_name(nametype->name, NULL));
             }
             for (p = decl->u.types; p; p = p->next)
             {
                 ast_nametype_t nametype = p->data;
-                type_t type = sym_lookup(tenv, nametype->name);
-                type->u.name.type = trans_type(tenv, nametype->type);
+                type_t type = sym_lookup(_tenv, nametype->name);
+                type->u.name.type = trans_type(nametype->type);
             }
             break;
         }
 
         case AST_VAR_DECL: {
-            expr_type_t init = trans_expr(venv, tenv, decl->u.var.init);
+            expr_type_t init = trans_expr(decl->u.var.init);
             type_t type = init.type;
 
             if (decl->u.var.type)
             {
-                type = ty_actual(sym_lookup(tenv, decl->u.var.type));
+                type = ty_actual(sym_lookup(_tenv, decl->u.var.type));
                 if (!type)
                 {
                     em_error(decl->pos,
@@ -148,13 +151,13 @@ static void trans_decl(table_t venv, table_t tenv, ast_decl_t decl)
                     type = init.type;
                 }
             }
-            sym_enter(venv, decl->u.var.var, env_var_entry(type));
+            sym_enter(_venv, decl->u.var.var, env_var_entry(type));
             break;
         }
     }
 }
 
-static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
+static expr_type_t trans_expr(ast_expr_t expr)
 {
     switch (expr->kind)
     {
@@ -162,7 +165,7 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
             return expr_type(NULL, ty_nil());
 
         case AST_VAR_EXPR:
-            return trans_var(venv, tenv, expr->u.var);
+            return trans_var(expr->u.var);
 
         case AST_NUM_EXPR:
             return expr_type(NULL, ty_int());
@@ -171,7 +174,7 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
             return expr_type(NULL, ty_string());
 
         case AST_CALL_EXPR: {
-            env_entry_t entry = sym_lookup(venv, expr->u.call.func);
+            env_entry_t entry = sym_lookup(_venv, expr->u.call.func);
             list_t p, q;
             int i;
 
@@ -193,7 +196,7 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
                  p && q;
                  p = p->next, q = q->next, i++)
             {
-                expr_type_t et = trans_expr(venv, tenv, (ast_expr_t) q->data);
+                expr_type_t et = trans_expr((ast_expr_t) q->data);
                 if (ty_actual((type_t) p->data) != et.type)
                     em_error(expr->pos,
                              "passing argument %d of '%s' from wrong type",
@@ -207,8 +210,8 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
 
         case AST_OP_EXPR: {
             ast_binop_t op = expr->u.op.op;
-            expr_type_t left = trans_expr(venv, tenv, expr->u.op.left);
-            expr_type_t right = trans_expr(venv, tenv, expr->u.op.right);
+            expr_type_t left = trans_expr(expr->u.op.left);
+            expr_type_t right = trans_expr(expr->u.op.right);
 
             switch (op) {
                 case AST_PLUS:
@@ -253,7 +256,7 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
         }
 
         case AST_RECORD_EXPR: {
-            type_t type = sym_lookup(tenv, expr->u.record.type);
+            type_t type = sym_lookup(_tenv, expr->u.record.type);
             list_t p, q;
 
             if (!type)
@@ -272,9 +275,7 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
                  p && q;
                  p = p->next, q = q->next)
             {
-                expr_type_t et = trans_expr(venv,
-                                            tenv,
-                                            ((ast_efield_t) q->data)->expr);
+                expr_type_t et = trans_expr(((ast_efield_t) q->data)->expr);
                 if (!ty_match(((ty_field_t) p->data)->type, et.type))
                     em_error(((ast_efield_t) q->data)->pos,
                              "wrong field type");
@@ -285,9 +286,9 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
         }
 
         case AST_ARRAY_EXPR: {
-            type_t type = ty_actual(sym_lookup(tenv, expr->u.array.type));
-            expr_type_t size = trans_expr(venv, tenv, expr->u.array.size);
-            expr_type_t init = trans_expr(venv, tenv, expr->u.array.init);
+            type_t type = ty_actual(sym_lookup(_tenv, expr->u.array.type));
+            expr_type_t size = trans_expr(expr->u.array.size);
+            expr_type_t init = trans_expr(expr->u.array.init);
             if (type->kind != TY_ARRAY)
                 em_error(expr->pos,
                          "'%s' is not array type",
@@ -306,7 +307,7 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
             list_t p = expr->u.seq;
             for (; p; p = p->next)
             {
-                expr_type_t et = trans_expr(venv, tenv, (ast_expr_t) p->data);
+                expr_type_t et = trans_expr((ast_expr_t) p->data);
                 if (!p->next)
                     return expr_type(NULL, et.type);
             }
@@ -314,14 +315,14 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
         }
 
         case AST_IF_EXPR: {
-            expr_type_t cond = trans_expr(venv, tenv, expr->u.if_.cond);
-            expr_type_t then = trans_expr(venv, tenv, expr->u.if_.then);
+            expr_type_t cond = trans_expr(expr->u.if_.cond);
+            expr_type_t then = trans_expr(expr->u.if_.then);
             if (cond.type->kind != TY_INT)
                 em_error(expr->pos,
                          "the type of if statement's condition must be integer");
             if (expr->u.if_.else_)
             {
-                expr_type_t else_ = trans_expr(venv, tenv, expr->u.if_.else_);
+                expr_type_t else_ = trans_expr(expr->u.if_.else_);
                 if (!ty_match(then.type, else_.type))
                     em_error(expr->pos,
                              "the type of if statement's two substatement must be the same");
@@ -333,8 +334,8 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
         }
 
         case AST_WHILE_EXPR: {
-            expr_type_t cond = trans_expr(venv, tenv, expr->u.while_.cond);
-            expr_type_t body = trans_expr(venv, tenv, expr->u.while_.body);
+            expr_type_t cond = trans_expr(expr->u.while_.cond);
+            expr_type_t body = trans_expr(expr->u.while_.body);
             if (cond.type->kind != TY_INT)
                 em_error(expr->pos,
                          "the type of while statement's condition must be integer");
@@ -345,8 +346,8 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
         }
 
         case AST_FOR_EXPR: {
-            expr_type_t lo = trans_expr(venv, tenv, expr->u.for_.lo);
-            expr_type_t hi = trans_expr(venv, tenv, expr->u.for_.hi);
+            expr_type_t lo = trans_expr(expr->u.for_.lo);
+            expr_type_t hi = trans_expr(expr->u.for_.hi);
             expr_type_t body;
             if (lo.type->kind != TY_INT)
                 em_error(expr->pos,
@@ -354,13 +355,13 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
             if (hi.type->kind != TY_INT)
                 em_error(expr->pos,
                          "the type of for statement's high range expression must be int");
-            sym_begin_scope(venv);
-            sym_enter(venv, expr->u.for_.var, env_var_entry(ty_int()));
-            body = trans_expr(venv, tenv, expr->u.for_.body);
+            sym_begin_scope(_venv);
+            sym_enter(_venv, expr->u.for_.var, env_var_entry(ty_int()));
+            body = trans_expr(expr->u.for_.body);
             if (body.type->kind != TY_VOID)
                 em_error(expr->pos,
                          "the body of for statement must produce no value");
-            sym_end_scope(venv);
+            sym_end_scope(_venv);
             return expr_type(NULL, ty_void());
         }
 
@@ -371,19 +372,19 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
             expr_type_t result;
             list_t p;
 
-            sym_begin_scope(venv);
-            sym_begin_scope(tenv);
+            sym_begin_scope(_venv);
+            sym_begin_scope(_tenv);
             for (p = expr->u.let.decls; p; p = p->next)
-                trans_decl(venv, tenv, p->data);
-            result = trans_expr(venv, tenv, expr->u.let.body);
-            sym_end_scope(venv);
-            sym_end_scope(tenv);
+                trans_decl(p->data);
+            result = trans_expr(expr->u.let.body);
+            sym_end_scope(_venv);
+            sym_end_scope(_tenv);
             return result;
         }
 
         case AST_ASSIGN_EXPR: {
-            expr_type_t var = trans_var(venv, tenv, expr->u.assign.var);
-            expr_type_t et = trans_expr(venv, tenv, expr->u.assign.expr);
+            expr_type_t var = trans_var(expr->u.assign.var);
+            expr_type_t et = trans_expr(expr->u.assign.expr);
             if (var.type != et.type &&
                 (var.type->kind != TY_RECORD || et.type->kind != TY_NIL))
             {
@@ -398,12 +399,12 @@ static expr_type_t trans_expr(table_t venv, table_t tenv, ast_expr_t expr)
     assert(0);
 }
 
-static type_t trans_type(table_t tenv, ast_type_t type)
+static type_t trans_type(ast_type_t type)
 {
     switch (type->kind)
     {
         case AST_NAME_TYPE: {
-            type_t t = sym_lookup(tenv, type->u.name);
+            type_t t = sym_lookup(_tenv, type->u.name);
             if (!t)
             {
                 em_error(type->pos,
@@ -421,7 +422,7 @@ static type_t trans_type(table_t tenv, ast_type_t type)
             for (; p; p = p->next)
             {
                 ast_field_t field = p->data;
-                type_t t = sym_lookup(tenv, field->type);
+                type_t t = sym_lookup(_tenv, field->type);
 
                 if (!t)
                 {
@@ -442,7 +443,7 @@ static type_t trans_type(table_t tenv, ast_type_t type)
         }
 
         case AST_ARRAY_TYPE: {
-            type_t t = sym_lookup(tenv, type->u.array);
+            type_t t = sym_lookup(_tenv, type->u.array);
             if (!t)
             {
                 em_error(type->pos,
@@ -457,12 +458,12 @@ static type_t trans_type(table_t tenv, ast_type_t type)
     assert(0);
 }
 
-static expr_type_t trans_var(table_t venv, table_t tenv, ast_var_t var)
+static expr_type_t trans_var(ast_var_t var)
 {
     switch (var->kind)
     {
         case AST_SIMPLE_VAR: {
-            env_entry_t entry = sym_lookup(venv, var->u.simple);
+            env_entry_t entry = sym_lookup(_venv, var->u.simple);
             if (!entry)
             {
                 em_error(var->pos,
@@ -482,7 +483,7 @@ static expr_type_t trans_var(table_t venv, table_t tenv, ast_var_t var)
         }
 
         case AST_FIELD_VAR: {
-            expr_type_t et = trans_var(venv, tenv, var->u.field.var);
+            expr_type_t et = trans_var(var->u.field.var);
             list_t p;
 
             if (et.type->kind != TY_RECORD)
@@ -501,8 +502,8 @@ static expr_type_t trans_var(table_t venv, table_t tenv, ast_var_t var)
         }
 
         case AST_SUB_VAR: {
-            expr_type_t et = trans_var(venv, tenv, var->u.sub.var);
-            expr_type_t sub = trans_expr(venv, tenv, var->u.sub.sub);
+            expr_type_t et = trans_var(var->u.sub.var);
+            expr_type_t sub = trans_expr(var->u.sub.sub);
             if (et.type->kind != TY_ARRAY)
             {
                 em_error(var->pos, "expected array type variable");
@@ -522,5 +523,7 @@ static expr_type_t trans_var(table_t venv, table_t tenv, ast_var_t var)
 
 void sem_trans_prog(ast_expr_t prog)
 {
-    trans_expr(env_base_venv(), env_base_tenv(), prog);
+    _venv = env_base_venv();
+    _tenv = env_base_tenv();
+    trans_expr(prog);
 }
