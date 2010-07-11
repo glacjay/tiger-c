@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 
 #include "types.h"
@@ -62,8 +63,16 @@ ty_field_t ty_field(symbol_t name, type_t type)
 
 type_t ty_actual(type_t type)
 {
+    type_t origin = type;
+    int counter = 0;
+
+    assert(type);
     while (type->kind == TY_NAME)
+    {
         type = type->u.name.type;
+        if (++counter > 4096)
+            return origin;
+    }
     return type;
 }
 
