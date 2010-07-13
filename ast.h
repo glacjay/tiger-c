@@ -30,7 +30,7 @@ struct ast_decl_s
     {
         list_t funcs;
         list_t types;
-        struct { symbol_t var; symbol_t type; ast_expr_t init; } var;
+        struct { symbol_t var; symbol_t type; ast_expr_t init; bool escape; } var;
     } u;
 };
 ast_decl_t ast_funcs_decl(int pos, list_t funcs);
@@ -60,7 +60,7 @@ struct ast_expr_s
         list_t seq;
         struct { ast_expr_t cond, then, else_; } if_;
         struct { ast_expr_t cond, body; } while_;
-        struct { symbol_t var; ast_expr_t lo, hi, body; } for_;
+        struct { symbol_t var; ast_expr_t lo, hi, body; bool escape; } for_;
         /* break; */
         struct { list_t decls; ast_expr_t body; } let;
         struct { ast_var_t var; ast_expr_t expr; } assign;
@@ -115,7 +115,7 @@ ast_var_t ast_sub_var(int pos, ast_var_t var, ast_expr_t sub);
 
 struct ast_efield_s { int pos; symbol_t name; ast_expr_t expr; };
 ast_efield_t ast_efield(int pos, symbol_t name, ast_expr_t expr);
-struct ast_field_s { symbol_t name, type; };
+struct ast_field_s { symbol_t name, type; bool escape; };
 ast_field_t ast_field(symbol_t name, symbol_t type);
 struct ast_func_s { int pos; symbol_t name; list_t params; symbol_t result; ast_expr_t body; };
 ast_func_t ast_func(int pos, symbol_t name, list_t params, symbol_t result, ast_expr_t body);

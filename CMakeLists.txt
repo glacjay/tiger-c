@@ -9,7 +9,7 @@ bison_target(PARSER parser.y ${CMAKE_CURRENT_BINARY_DIR}/parser.c)
 add_flex_bison_dependency(LEXER PARSER)
 
 add_executable(tiger
-    ast.c env.c errmsg.c main.c ppast.c semantic.c symbol.c table.c types.c
-    utils.c
+    ast.c escape.c env.c errmsg.c main.c ppast.c semantic.c symbol.c table.c
+    types.c utils.c
     ${FLEX_LEXER_OUTPUTS}
     ${BISON_PARSER_OUTPUTS})

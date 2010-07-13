@@ -4,10 +4,6 @@
 #include "symbol.h"
 #include "utils.h"
 
-static void pp_decl(FILE *fp, int d, ast_decl_t decl);
-static void pp_type(FILE *fp, int d, ast_type_t type);
-static void pp_var(FILE *fp, int d, ast_var_t var);
-
 static void pp_efield(FILE *fp, int d, ast_efield_t efield);
 static void pp_field(FILE *fp, int d, ast_field_t field);
 static void pp_func(FILE *fp, int d, ast_func_t func);
@@ -40,7 +36,7 @@ static void pp_list(FILE *fp, int d, list_t list, string_t name, pp_func_t func)
     fprintf(fp, ")\n");
 }
 
-static void pp_decl(FILE *fp, int d, ast_decl_t decl)
+void pp_decl(FILE *fp, int d, ast_decl_t decl)
 {
     indent(fp, d);
     switch (decl->kind)
@@ -59,6 +55,8 @@ static void pp_decl(FILE *fp, int d, ast_decl_t decl)
                 fprintf(fp, "%s\n", sym_name(decl->u.var.type));
             }
             pp_expr(fp, d+1, decl->u.var.init);
+            indent(fp, d+1);
+            fprintf(fp, "%s\n", decl->u.var.escape ? "TRUE" : "FALSE");
             indent(fp, d);
             fprintf(fp, ")\n");
             break;
@@ -139,6 +137,8 @@ void pp_expr(FILE *fp, int d, ast_expr_t expr)
             break;
         case AST_FOR_EXPR:
             fprintf(fp, "for_expr(%s,\n", sym_name(expr->u.for_.var));
+            indent(fp, d+1);
+            fprintf(fp, "%s\n", expr->u.for_.escape ? "TRUE" : "FALSE");
             pp_expr(fp, d+1, expr->u.for_.lo);
             pp_expr(fp, d+1, expr->u.for_.hi);
             pp_expr(fp, d+1, expr->u.for_.body);
@@ -168,7 +168,7 @@ void pp_expr(FILE *fp, int d, ast_expr_t expr)
     }
 }
 
-static void pp_type(FILE *fp, int d, ast_type_t type)
+void pp_type(FILE *fp, int d, ast_type_t type)
 {
     indent(fp, d);
     switch (type->kind)
@@ -187,7 +187,7 @@ static void pp_type(FILE *fp, int d, ast_type_t type)
     }
 }
 
-static void pp_var(FILE *fp, int d, ast_var_t var)
+void pp_var(FILE *fp, int d, ast_var_t var)
 {
     indent(fp, d);
     switch (var->kind)
@@ -235,6 +235,8 @@ static void pp_field(FILE *fp, int d, ast_field_t field)
     fprintf(fp, "field(%s\n", sym_name(field->name));
     indent(fp, d+1);
     fprintf(fp, "%s\n", sym_name(field->type));
+    indent(fp, d+1);
+    fprintf(fp, "%s\n", field->escape ? "TRUE" : "FALSE");
     indent(fp, d);
     fprintf(fp, ")\n");
 }

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "ast.h"
+#include "escape.h"
 #include "errmsg.h"
 #include "parser-wrap.h"
 #include "ppast.h"
@@ -10,7 +11,7 @@
 
 int main(int argc, char **argv)
 {
-    ast_expr_t result;
+    ast_expr_t prog;
 
     if (argc != 2)
     {
@@ -19,8 +20,12 @@ int main(int argc, char **argv)
     }
 
     /* yydebug = 1; */
-    if ((result = parse(argv[1])) && !em_any_errors)
-        sem_trans_prog(result);
+    if (!(prog = parse(argv[1])) || em_any_errors)
+        exit(1);
+
+    esc_find_escape(prog);
+    /* pp_expr(stdout, 0, prog); */
+    sem_trans_prog(prog);
 
     return 0;
 }

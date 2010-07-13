@@ -26,6 +26,7 @@ ast_decl_t ast_var_decl(int pos, symbol_t var, symbol_t type, ast_expr_t init)
     p->u.var.var = var;
     p->u.var.type = type;
     p->u.var.init = init;
+    p->u.var.escape = false;
     return p;
 }
 
@@ -145,6 +146,7 @@ ast_expr_t ast_for_expr(int pos, symbol_t var, ast_expr_t lo, ast_expr_t hi, ast
     p->u.for_.lo = lo;
     p->u.for_.hi = hi;
     p->u.for_.body = body;
+    p->u.for_.escape = false;
     return p;
 }
 
@@ -246,6 +248,7 @@ ast_field_t ast_field(symbol_t name, symbol_t type)
     ast_field_t p = checked_malloc(sizeof(*p));
     p->name = name;
     p->type = type;
+    p->escape = false;
     return p;
 }
 
