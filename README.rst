@@ -6,17 +6,14 @@ This project is my practice of the book "Modern Compiler Implementation in C".
 Progress
 ========
 
-Chapter 5 - Program 1: Type Checking
+Chapter 5 - Program 1: Frames
 
-Write a type-checking phase for your compiler, a module ``semantic.c`` matching
-the following header file::
+Augment ``semantic.c`` to allocate locations for local variables, and to keep
+track of the nesting level. To keep things simple, assume every variable
+escapes.
 
-    /* semantic.h */
-    void sem_trans_prog(ast_expr_t expr);
+Implement the ``Translate`` module as ``translate.c``.
 
-that type-checks an abstract syntax tree and produces any appropriate error
-messages about mismatching types or undeclared identifiers.
-
-Also provider the implementation of the env module described in this chapter.
-Make a module main that calls the parser, yielding an ``ast_expr_t``, and then
-calls ``sem_trans_prog`` on this expression.
+If you are compiling for the Sparc, implement the ``SparcFrame`` module
+(matching frame.h) as ``frame-sparc.c``. If compiling for the MIPS, implement
+MipsFrame, and so on.

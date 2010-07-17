@@ -78,7 +78,7 @@ void *tab_pop(table_t tab)
     return bind->key;
 }
 
-void tab_dump(table_t tab, void (*show)(void *key, void *value))
+void tab_dump(table_t tab, tab_dump_func_t show)
 {
     binder_t bind = tab->top;
 

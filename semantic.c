@@ -26,12 +26,12 @@ static expr_type_t expr_type(tr_expr_t expr, type_t type)
     return result;
 }
 
-static void trans_decl(ast_decl_t decl);
-static expr_type_t trans_expr(ast_expr_t expr);
+static void trans_decl(tr_level_t level, ast_decl_t decl);
+static expr_type_t trans_expr(tr_level_t level, ast_expr_t expr);
 static type_t trans_type(ast_type_t type);
-static expr_type_t trans_var(ast_var_t var);
+static expr_type_t trans_var(tr_level_t level, ast_var_t var);
 
-#if 0
+#if 0 /* for debug only */
 static void show_types(void *key, void *value)
 {
     string_t name = sym_name((symbol_t) key);
@@ -73,7 +73,24 @@ static list_t formal_type_list(list_t params, int pos)
     return q;
 }
 
-static void trans_funcs_decl(ast_decl_t decl)
+static list_t formal_escape_list(list_t params)
+{
+    list_t p = params, q = NULL, r = NULL;
+    for (; p; p = p->next)
+    {
+        list_t bl = bool_list(((ast_field_t) p->data)->escape, NULL);
+        if (r)
+        {
+            r->next = bl;
+            r = r->next;
+        }
+        else
+            q = r = bl;
+    }
+    return q;
+}
+
+static void trans_funcs_decl(tr_level_t level, ast_decl_t decl)
 {
     list_t p, q;
 
@@ -93,7 +110,9 @@ static void trans_funcs_decl(ast_decl_t decl)
     {
         ast_func_t func = p->data;
         list_t formals = formal_type_list(func->params, decl->pos);
+        list_t escapes = formal_escape_list(func->params);
         type_t result;
+        tmp_label_t label = tmp_label();
 
         if (func->result)
         {
@@ -103,7 +122,12 @@ static void trans_funcs_decl(ast_decl_t decl)
         }
         else
             result = ty_void();
-        sym_enter(_venv, func->name, env_func_entry(formals, result));
+        sym_enter(_venv,
+                  func->name,
+                  env_func_entry(tr_level(level, label, escapes),
+                                 label,
+                                 formals,
+                                 result));
     }
 
     /* Translate the possibly mutually recursive functions. */
@@ -113,24 +137,25 @@ static void trans_funcs_decl(ast_decl_t decl)
         env_entry_t entry = sym_lookup(_venv, func->name);
         list_t q = func->params;
         list_t r = entry->u.func.formals;
+        list_t s = tr_formals(entry->u.func.level)->next;
         expr_type_t result;
 
         sym_begin_scope(_venv);
-        for (; q; q = q->next, r = r->next)
+        for (; q; q = q->next, r = r->next, s = s->next)
         {
             sym_enter(_venv,
                       ((ast_field_t) q->data)->name,
-                      env_var_entry(r->data, false));
+                      env_var_entry(s->data, r->data, false));
         }
         assert(!q && !r);
-        result = trans_expr(func->body);
+        result = trans_expr(entry->u.func.level, func->body);
         if (!ty_match(result.type, entry->u.func.result))
             em_error(func->pos, "function body's type is incorrect");
         sym_end_scope(_venv);
     }
 }
 
-static void trans_types_decl(ast_decl_t decl)
+static void trans_types_decl(tr_level_t level, ast_decl_t decl)
 {
     list_t p, q;
 
@@ -170,10 +195,11 @@ static void trans_types_decl(ast_decl_t decl)
     }
 }
 
-static void trans_var_decl(ast_decl_t decl)
+static void trans_var_decl(tr_level_t level, ast_decl_t decl)
 {
-    expr_type_t init = trans_expr(decl->u.var.init);
+    expr_type_t init = trans_expr(level, decl->u.var.init);
     type_t type = init.type;
+    tr_access_t access = tr_alloc_local(level, decl->u.var.escape);
 
     if (decl->u.var.type)
     {
@@ -188,10 +214,10 @@ static void trans_var_decl(ast_decl_t decl)
         em_error(decl->pos, "don't know which record type to take");
     else if (init.type->kind == TY_VOID)
         em_error(decl->pos, "can't assign void value to a variable");
-    sym_enter(_venv, decl->u.var.var, env_var_entry(type, false));
+    sym_enter(_venv, decl->u.var.var, env_var_entry(access, type, false));
 }
 
-typedef void (*trans_decl_func)(ast_decl_t);
+typedef void (*trans_decl_func)(tr_level_t level, ast_decl_t);
 /* XXX Keep sync with ast_decl_t's declaration! */
 static trans_decl_func _trans_decl_funcs[] =
 {
@@ -200,32 +226,32 @@ static trans_decl_func _trans_decl_funcs[] =
     trans_var_decl,
 };
 
-static void trans_decl(ast_decl_t decl)
+static void trans_decl(tr_level_t level, ast_decl_t decl)
 {
-    _trans_decl_funcs[decl->kind](decl);
+    _trans_decl_funcs[decl->kind](level, decl);
 }
 
-static expr_type_t trans_nil_expr(ast_expr_t expr)
+static expr_type_t trans_nil_expr(tr_level_t level, ast_expr_t expr)
 {
     return expr_type(NULL, ty_nil());
 }
 
-static expr_type_t trans_var_expr(ast_expr_t expr)
+static expr_type_t trans_var_expr(tr_level_t level, ast_expr_t expr)
 {
-    return trans_var(expr->u.var);
+    return trans_var(level, expr->u.var);
 }
 
-static expr_type_t trans_num_expr(ast_expr_t expr)
+static expr_type_t trans_num_expr(tr_level_t level, ast_expr_t expr)
 {
     return expr_type(NULL, ty_int());
 }
 
-static expr_type_t trans_string_expr(ast_expr_t expr)
+static expr_type_t trans_string_expr(tr_level_t level, ast_expr_t expr)
 {
     return expr_type(NULL, ty_string());
 }
 
-static expr_type_t trans_call_expr(ast_expr_t expr)
+static expr_type_t trans_call_expr(tr_level_t level, ast_expr_t expr)
 {
     env_entry_t entry = sym_lookup(_venv, expr->u.call.func);
     list_t p, q;
@@ -250,7 +276,7 @@ static expr_type_t trans_call_expr(ast_expr_t expr)
          p && q;
          p = p->next, q = q->next, i++)
     {
-        expr_type_t et = trans_expr((ast_expr_t) q->data);
+        expr_type_t et = trans_expr(level, (ast_expr_t) q->data);
         if (!ty_match(p->data, et.type))
             em_error(expr->pos,
                      "passing argument %d of '%s' with wrong type",
@@ -264,11 +290,11 @@ static expr_type_t trans_call_expr(ast_expr_t expr)
     return expr_type(NULL, ty_actual(entry->u.func.result));
 }
 
-static expr_type_t trans_op_expr(ast_expr_t expr)
+static expr_type_t trans_op_expr(tr_level_t level, ast_expr_t expr)
 {
     ast_binop_t op = expr->u.op.op;
-    expr_type_t left = trans_expr(expr->u.op.left);
-    expr_type_t right = trans_expr(expr->u.op.right);
+    expr_type_t left = trans_expr(level, expr->u.op.left);
+    expr_type_t right = trans_expr(level, expr->u.op.right);
 
     switch (op) {
         case AST_PLUS:
@@ -306,7 +332,7 @@ static expr_type_t trans_op_expr(ast_expr_t expr)
     assert(0);
 }
 
-static expr_type_t trans_record_expr(ast_expr_t expr)
+static expr_type_t trans_record_expr(tr_level_t level, ast_expr_t expr)
 {
     type_t type = lookup_type(expr->u.record.type, expr->pos);
     list_t p, q;
@@ -322,7 +348,7 @@ static expr_type_t trans_record_expr(ast_expr_t expr)
          p = p->next, q = q->next)
     {
         ast_efield_t efield = q->data;
-        expr_type_t et = trans_expr(efield->expr);
+        expr_type_t et = trans_expr(level, efield->expr);
         if (!ty_match(((ty_field_t) p->data)->type, et.type))
             em_error(efield->pos, "wrong field type");
     }
@@ -331,11 +357,11 @@ static expr_type_t trans_record_expr(ast_expr_t expr)
     return expr_type(NULL, type);
 }
 
-static expr_type_t trans_array_expr(ast_expr_t expr)
+static expr_type_t trans_array_expr(tr_level_t level, ast_expr_t expr)
 {
     type_t type = lookup_type(expr->u.array.type, expr->pos);
-    expr_type_t size = trans_expr(expr->u.array.size);
-    expr_type_t init = trans_expr(expr->u.array.init);
+    expr_type_t size = trans_expr(level, expr->u.array.size);
+    expr_type_t init = trans_expr(level, expr->u.array.init);
 
     if (!type)
         return expr_type(NULL, ty_int());
@@ -350,29 +376,29 @@ static expr_type_t trans_array_expr(ast_expr_t expr)
     return expr_type(NULL, type);
 }
 
-static expr_type_t trans_seq_expr(ast_expr_t expr)
+static expr_type_t trans_seq_expr(tr_level_t level, ast_expr_t expr)
 {
     list_t p = expr->u.seq;
     for (; p; p = p->next)
     {
-        expr_type_t et = trans_expr((ast_expr_t) p->data);
+        expr_type_t et = trans_expr(level, (ast_expr_t) p->data);
         if (!p->next)
             return expr_type(NULL, et.type);
     }
     return expr_type(NULL, ty_void());
 }
 
-static expr_type_t trans_if_expr(ast_expr_t expr)
+static expr_type_t trans_if_expr(tr_level_t level, ast_expr_t expr)
 {
-    expr_type_t cond = trans_expr(expr->u.if_.cond);
-    expr_type_t then = trans_expr(expr->u.if_.then);
+    expr_type_t cond = trans_expr(level, expr->u.if_.cond);
+    expr_type_t then = trans_expr(level, expr->u.if_.then);
 
     if (cond.type->kind != TY_INT)
         em_error(expr->pos,
                  "condition's type must be integer");
     if (expr->u.if_.else_)
     {
-        expr_type_t else_ = trans_expr(expr->u.if_.else_);
+        expr_type_t else_ = trans_expr(level, expr->u.if_.else_);
         if (!ty_match(then.type, else_.type))
             em_error(expr->pos, "types of then and else differ");
         return expr_type(NULL, then.type);
@@ -382,10 +408,10 @@ static expr_type_t trans_if_expr(ast_expr_t expr)
     return expr_type(NULL, ty_void());
 }
 
-static expr_type_t trans_while_expr(ast_expr_t expr)
+static expr_type_t trans_while_expr(tr_level_t level, ast_expr_t expr)
 {
-    expr_type_t cond = trans_expr(expr->u.while_.cond);
-    expr_type_t body = trans_expr(expr->u.while_.body);
+    expr_type_t cond = trans_expr(level, expr->u.while_.cond);
+    expr_type_t body = trans_expr(level, expr->u.while_.body);
     if (cond.type->kind != TY_INT)
         em_error(expr->pos, "condition's type must be integer");
     if (body.type->kind != TY_VOID)
@@ -393,32 +419,34 @@ static expr_type_t trans_while_expr(ast_expr_t expr)
     return expr_type(NULL, ty_void());
 }
 
-static expr_type_t trans_for_expr(ast_expr_t expr)
+static expr_type_t trans_for_expr(tr_level_t level, ast_expr_t expr)
 {
-    expr_type_t lo = trans_expr(expr->u.for_.lo);
-    expr_type_t hi = trans_expr(expr->u.for_.hi);
+    expr_type_t lo = trans_expr(level, expr->u.for_.lo);
+    expr_type_t hi = trans_expr(level, expr->u.for_.hi);
     expr_type_t body;
+    tr_access_t access = tr_alloc_local(level, expr->u.for_.escape);
+
     if (lo.type->kind != TY_INT)
         em_error(expr->pos, "lo expression should be int type");
     if (hi.type->kind != TY_INT)
         em_error(expr->pos, "hi expression should be int type");
     sym_begin_scope(_venv);
-    sym_enter(_venv, expr->u.for_.var, env_var_entry(ty_int(), true));
+    sym_enter(_venv, expr->u.for_.var, env_var_entry(access, ty_int(), true));
     /* TODO Check assignment to the variable. */
-    body = trans_expr(expr->u.for_.body);
+    body = trans_expr(level, expr->u.for_.body);
     if (body.type->kind != TY_VOID)
         em_error(expr->pos, "for should return nothing");
     sym_end_scope(_venv);
     return expr_type(NULL, ty_void());
 }
 
-static expr_type_t trans_break_expr(ast_expr_t expr)
+static expr_type_t trans_break_expr(tr_level_t level, ast_expr_t expr)
 {
     /* TODO Check for outer for or while statement. */
     return expr_type(NULL, ty_void());
 }
 
-static expr_type_t trans_let_expr(ast_expr_t expr)
+static expr_type_t trans_let_expr(tr_level_t level, ast_expr_t expr)
 {
     expr_type_t result;
     list_t p;
@@ -426,17 +454,17 @@ static expr_type_t trans_let_expr(ast_expr_t expr)
     sym_begin_scope(_venv);
     sym_begin_scope(_tenv);
     for (p = expr->u.let.decls; p; p = p->next)
-        trans_decl(p->data);
-    result = trans_expr(expr->u.let.body);
+        trans_decl(level, p->data);
+    result = trans_expr(level, expr->u.let.body);
     sym_end_scope(_venv);
     sym_end_scope(_tenv);
     return result;
 }
 
-static expr_type_t trans_assign_expr(ast_expr_t expr)
+static expr_type_t trans_assign_expr(tr_level_t level, ast_expr_t expr)
 {
-    expr_type_t var = trans_var(expr->u.assign.var);
-    expr_type_t et = trans_expr(expr->u.assign.expr);
+    expr_type_t var = trans_var(level, expr->u.assign.var);
+    expr_type_t et = trans_expr(level, expr->u.assign.expr);
 
     if (!ty_match(var.type, et.type))
         em_error(expr->pos, "type mismatch");
@@ -453,7 +481,7 @@ static expr_type_t trans_assign_expr(ast_expr_t expr)
     return expr_type(NULL, ty_void());
 }
 
-typedef expr_type_t (*trans_expr_func)(ast_expr_t);
+typedef expr_type_t (*trans_expr_func)(tr_level_t level, ast_expr_t);
 static trans_expr_func _trans_expr_funcs[] =
 {
     trans_nil_expr,
@@ -473,9 +501,9 @@ static trans_expr_func _trans_expr_funcs[] =
     trans_assign_expr,
 };
 
-static expr_type_t trans_expr(ast_expr_t expr)
+static expr_type_t trans_expr(tr_level_t level, ast_expr_t expr)
 {
-    return _trans_expr_funcs[expr->kind](expr);
+    return _trans_expr_funcs[expr->kind](level, expr);
 }
 
 static type_t trans_name_type(ast_type_t type)
@@ -539,7 +567,7 @@ static type_t trans_type(ast_type_t type)
     return _trans_type_funcs[type->kind](type);
 }
 
-static expr_type_t trans_simple_var(ast_var_t var)
+static expr_type_t trans_simple_var(tr_level_t level, ast_var_t var)
 {
     env_entry_t entry = sym_lookup(_venv, var->u.simple);
     if (!entry)
@@ -558,9 +586,9 @@ static expr_type_t trans_simple_var(ast_var_t var)
         return expr_type(NULL, ty_actual(entry->u.var.type));
 }
 
-static expr_type_t trans_field_var(ast_var_t var)
+static expr_type_t trans_field_var(tr_level_t level, ast_var_t var)
 {
-    expr_type_t et = trans_var(var->u.field.var);
+    expr_type_t et = trans_var(level, var->u.field.var);
     list_t p;
 
     if (et.type->kind != TY_RECORD)
@@ -580,10 +608,10 @@ static expr_type_t trans_field_var(ast_var_t var)
     return expr_type(NULL, ty_int());
 }
 
-static expr_type_t trans_sub_var(ast_var_t var)
+static expr_type_t trans_sub_var(tr_level_t level, ast_var_t var)
 {
-    expr_type_t et = trans_var(var->u.sub.var);
-    expr_type_t sub = trans_expr(var->u.sub.sub);
+    expr_type_t et = trans_var(level, var->u.sub.var);
+    expr_type_t sub = trans_expr(level, var->u.sub.sub);
 
     if (et.type->kind != TY_ARRAY)
     {
@@ -595,7 +623,7 @@ static expr_type_t trans_sub_var(ast_var_t var)
     return expr_type(NULL, ty_actual(et.type->u.array));
 }
 
-typedef expr_type_t (*trans_var_func)(ast_var_t);
+typedef expr_type_t (*trans_var_func)(tr_level_t level, ast_var_t);
 static trans_var_func _trans_var_funcs[] =
 {
     trans_simple_var,
@@ -603,14 +631,14 @@ static trans_var_func _trans_var_funcs[] =
     trans_sub_var,
 };
 
-static expr_type_t trans_var(ast_var_t var)
+static expr_type_t trans_var(tr_level_t level, ast_var_t var)
 {
-    return _trans_var_funcs[var->kind](var);
+    return _trans_var_funcs[var->kind](level, var);
 }
 
 void sem_trans_prog(ast_expr_t prog)
 {
     _venv = env_base_venv();
     _tenv = env_base_tenv();
-    trans_expr(prog);
+    trans_expr(tr_outermost(), prog);
 }
