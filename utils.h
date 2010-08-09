@@ -28,4 +28,6 @@ list_t list(void *data, list_t next);
 list_t int_list(int i, list_t next);
 list_t bool_list(bool b, list_t next);
 
+list_t join_list(list_t list1, list_t list2);
+
 #endif

@@ -19,7 +19,6 @@ enum ast_binop_e
 {
     AST_PLUS, AST_MINUS, AST_TIMES, AST_DIVIDE,
     AST_EQ, AST_NEQ, AST_LT, AST_LE, AST_GT, AST_GE,
-    AST_AND, AST_OR,
 };
 
 struct ast_decl_s

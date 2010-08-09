@@ -40,3 +40,14 @@ list_t bool_list(bool b, list_t next)
     p->next = next;
     return p;
 }
+
+list_t join_list(list_t list1, list_t list2)
+{
+    list_t p = list1;
+    if (!p)
+        return list2;
+    while (p->next)
+        p = p->next;
+    p->next = list2;
+    return list1;
+}

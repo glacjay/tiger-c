@@ -143,9 +143,9 @@ expr:
 |   expr TK_GE expr
     { $$ = ast_op_expr($2, $1, AST_GE, $3); }
 |   expr TK_AND expr
-    { $$ = ast_op_expr($2, $1, AST_AND, $3); }
+    { $$ = ast_if_expr($2, $1, $3, ast_num_expr($2, 0)); }
 |   expr TK_OR expr
-    { $$ = ast_op_expr($2, $1, AST_OR, $3); }
+    { $$ = ast_if_expr($2, $1, ast_num_expr($2, 1), $3); }
 |   id TK_LBRACE TK_RBRACE
     { $$ = ast_record_expr($2, $1, NULL); }
 |   id TK_LBRACE id TK_EQ expr efield_seq TK_RBRACE

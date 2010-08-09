@@ -2,11 +2,11 @@
 
 #include "env.h"
 #include "errmsg.h"
+#include "ir.h"
 #include "ppast.h"
 #include "semantic.h"
+#include "translate.h"
 #include "types.h"
-
-typedef void *tr_expr_t;
 
 static table_t _venv;
 static table_t _tenv;
@@ -233,7 +233,7 @@ static void trans_decl(tr_level_t level, ast_decl_t decl)
 
 static expr_type_t trans_nil_expr(tr_level_t level, ast_expr_t expr)
 {
-    return expr_type(NULL, ty_nil());
+    return expr_type(tr_ex(ir_const_expr(0)), ty_nil());
 }
 
 static expr_type_t trans_var_expr(tr_level_t level, ast_expr_t expr)
@@ -301,8 +301,6 @@ static expr_type_t trans_op_expr(tr_level_t level, ast_expr_t expr)
         case AST_MINUS:
         case AST_TIMES:
         case AST_DIVIDE:
-        case AST_AND:
-        case AST_OR:
             if (left.type->kind != TY_INT)
                 em_error(expr->u.op.left->pos, "integer required");
             if (right.type->kind != TY_INT)
