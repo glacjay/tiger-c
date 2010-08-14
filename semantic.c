@@ -414,11 +414,12 @@ static expr_type_t trans_if_expr(tr_level_t level, ast_expr_t expr)
         expr_type_t else_ = trans_expr(level, expr->u.if_.else_);
         if (!ty_match(then.type, else_.type))
             em_error(expr->pos, "types of then and else differ");
-        return expr_type(NULL, then.type);
+        return expr_type(tr_if_expr(cond.expr, then.expr, else_.expr),
+                         then.type);
     }
     else if (then.type->kind != TY_VOID)
         em_error(expr->pos, "if-then should return nothing");
-    return expr_type(NULL, ty_void());
+    return expr_type(tr_if_expr(cond.expr, then.expr, NULL), ty_void());
 }
 
 static expr_type_t trans_while_expr(tr_level_t level, ast_expr_t expr)

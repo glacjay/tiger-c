@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,6 +24,24 @@ list_t list(void *data, list_t next)
     p->data = data;
     p->next = next;
     return p;
+}
+
+list_t vlist(int count, ...)
+{
+    list_t result = NULL, next = NULL;
+    va_list ap;
+
+    va_start(ap, count);
+    for (; count > 0; count--)
+    {
+        void *data = va_arg(ap, void *);
+        list_t p = list(data, NULL);
+        if (result)
+            next = next->next = p;
+        else
+            result = next = p;
+    }
+    return result;
 }
 
 list_t int_list(int i, list_t next)

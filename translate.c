@@ -273,24 +273,40 @@ tr_expr_t tr_record_expr(list_t fields, int size)
 tr_expr_t tr_array_expr(tr_expr_t size, tr_expr_t init)
 {
     return tr_ex(fr_external_call(
-                    "_InitArray", list(un_ex(size), list(un_ex(init), NULL))));
+        "_InitArray", list(un_ex(size), list(un_ex(init), NULL))));
 }
 
 tr_expr_t tr_if_expr(tr_expr_t cond, tr_expr_t then, tr_expr_t else_)
 {
     tmp_label_t t = tmp_label();
     tmp_label_t f = tmp_label();
+    tmp_label_t done = tmp_label();
     cx_t cx = un_cx(cond);
-    // ir_expr_t result = ir_tmp_expr(temp());
+    ir_expr_t result = ir_tmp_expr(temp());
 
     fill_patch(cx.trues, t);
     fill_patch(cx.falses, f);
     if (else_)
     {
-        un_nx(NULL);
+        return tr_ex(ir_eseq_expr(ir_seq_stmt(vlist(
+                7,
+                cx.stmt,
+                ir_label_stmt(t),
+                ir_move_stmt(ir_mem_expr(result), un_ex(then)),
+                ir_jump_stmt(ir_name_expr(done), list(done, NULL)),
+                ir_label_stmt(f),
+                ir_move_stmt(ir_mem_expr(result), un_ex(else_)),
+                ir_label_stmt(done))),
+            result));
     }
     else
     {
+        return tr_nx(ir_seq_stmt(vlist(
+              4,
+              cx.stmt,
+              ir_label_stmt(t),
+              un_nx(then),
+              ir_label_stmt(f))));
     }
     return NULL;
 }
