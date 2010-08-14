@@ -15,7 +15,7 @@ typedef enum {
 
 typedef enum {
     IR_EQ, IR_NE, IR_LT, IR_LE, IR_GT, IR_GE,
-    IR_ULR, IR_ULE, IR_UGT, IR_UGE,
+    IR_ULT, IR_ULE, IR_UGT, IR_UGE,
 } ir_relop_t;
 
 struct ir_stmt_s

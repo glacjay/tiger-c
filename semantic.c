@@ -233,7 +233,7 @@ static void trans_decl(tr_level_t level, ast_decl_t decl)
 
 static expr_type_t trans_nil_expr(tr_level_t level, ast_expr_t expr)
 {
-    return expr_type(NULL, ty_nil());
+    return expr_type(tr_num_expr(0), ty_nil());
 }
 
 static expr_type_t trans_var_expr(tr_level_t level, ast_expr_t expr)
@@ -243,7 +243,7 @@ static expr_type_t trans_var_expr(tr_level_t level, ast_expr_t expr)
 
 static expr_type_t trans_num_expr(tr_level_t level, ast_expr_t expr)
 {
-    return expr_type(NULL, ty_int());
+    return expr_type(tr_num_expr(expr->u.num), ty_int());
 }
 
 static expr_type_t trans_string_expr(tr_level_t level, ast_expr_t expr)
@@ -305,14 +305,23 @@ static expr_type_t trans_op_expr(tr_level_t level, ast_expr_t expr)
                 em_error(expr->u.op.left->pos, "integer required");
             if (right.type->kind != TY_INT)
                 em_error(expr->u.op.right->pos, "integer required");
-            return expr_type(NULL, ty_int());
+            return expr_type(
+                    tr_op_expr(op-AST_PLUS+IR_PLUS, left.expr, right.expr),
+                    ty_int());
 
         case AST_EQ:
-        case AST_NEQ:
+        case AST_NEQ: {
+            tr_expr_t result = NULL;
             if (!ty_match(left.type, right.type))
                 em_error(expr->pos,
                          "the type of two operands must be the same");
-            return expr_type(NULL, ty_int());
+            else if (left.type->kind == TY_STRING)
+                result = tr_string_rel_expr(
+                        op-AST_EQ+IR_EQ, left.expr, right.expr);
+            else
+                result = tr_rel_expr(op-AST_EQ+IR_EQ, left.expr, right.expr);
+            return expr_type(result, ty_int());
+        }
 
         case AST_LT:
         case AST_LE:
@@ -334,6 +343,8 @@ static expr_type_t trans_record_expr(tr_level_t level, ast_expr_t expr)
 {
     type_t type = lookup_type(expr->u.record.type, expr->pos);
     list_t p, q;
+    list_t fields = NULL, next = NULL;
+    int size = 0;
 
     if (!type)
         return expr_type(NULL, ty_nil());
@@ -343,16 +354,20 @@ static expr_type_t trans_record_expr(tr_level_t level, ast_expr_t expr)
                  sym_name(expr->u.record.type));
     for (p = type->u.record, q = expr->u.record.efields;
          p && q;
-         p = p->next, q = q->next)
+         p = p->next, q = q->next, size++)
     {
         ast_efield_t efield = q->data;
         expr_type_t et = trans_expr(level, efield->expr);
         if (!ty_match(((ty_field_t) p->data)->type, et.type))
             em_error(efield->pos, "wrong field type");
+        if (fields)
+            next = next->next = list(et.expr, NULL);
+        else
+            fields = next = list(et.expr, NULL);
     }
     if (p || q)
         em_error(expr->pos, "wrong field number");
-    return expr_type(NULL, type);
+    return expr_type(tr_record_expr(fields, size), type);
 }
 
 static expr_type_t trans_array_expr(tr_level_t level, ast_expr_t expr)
@@ -371,7 +386,7 @@ static expr_type_t trans_array_expr(tr_level_t level, ast_expr_t expr)
         em_error(expr->pos, "array's size must be the int type");
     if (!ty_match(type->u.array, init.type))
         em_error(expr->pos, "initializer has incorrect type");
-    return expr_type(NULL, type);
+    return expr_type(tr_array_expr(size.expr, init.expr), type);
 }
 
 static expr_type_t trans_seq_expr(tr_level_t level, ast_expr_t expr)
@@ -476,7 +491,7 @@ static expr_type_t trans_assign_expr(tr_level_t level, ast_expr_t expr)
             em_error(expr->pos, "assigning to the for variable");
     }
 
-    return expr_type(NULL, ty_void());
+    return expr_type(tr_assign_expr(var.expr, et.expr), ty_void());
 }
 
 typedef expr_type_t (*trans_expr_func)(tr_level_t level, ast_expr_t);

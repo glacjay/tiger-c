@@ -14,8 +14,22 @@ list_t fr_formals(frame_t fr);
 fr_access_t fr_alloc_local(frame_t fr, bool escape);
 int fr_offset(fr_access_t access);
 
+typedef struct fr_frag_s *fr_frag_t;
+struct fr_frag_s
+{
+    enum { FR_STRING_FRAG, FR_PROC_FRAG, } kind;
+    union
+    {
+        struct { tmp_label_t label; string_t string; } string;
+        struct { ir_stmt_t stmt; frame_t frame; } proc;
+    } u;
+};
+fr_frag_t fr_string_frag(tmp_label_t label, string_t string);
+fr_frag_t fr_proc_frag(ir_stmt_t stmt, frame_t frame);
+
 temp_t fr_fp(void);
 extern const int FR_WORD_SIZE;
 ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr);
+ir_expr_t fr_external_call(string_t name, list_t args);
 
 #endif

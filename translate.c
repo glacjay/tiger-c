@@ -216,6 +216,90 @@ tr_expr_t tr_num_expr(int num)
     return tr_ex(ir_const_expr(num));
 }
 
+tr_expr_t tr_op_expr(int op, tr_expr_t left, tr_expr_t right)
+{
+    ir_expr_t l = un_ex(left);
+    ir_expr_t r = un_ex(right);
+    return tr_ex(ir_binop_expr(op, l, r));
+}
+
+tr_expr_t tr_rel_expr(int op, tr_expr_t left, tr_expr_t right)
+{
+    ir_stmt_t stmt = ir_cjump_stmt(op, un_ex(left), un_ex(right), NULL, NULL);
+    return tr_cx(list(&stmt->u.cjump.t, NULL),
+                 list(&stmt->u.cjump.f, NULL),
+                 stmt);
+}
+
+tr_expr_t tr_string_rel_expr(int op, tr_expr_t left, tr_expr_t right)
+{
+    ir_expr_t expr = fr_external_call("_CompareString",
+                                      list(left, list(right, NULL)));
+    ir_stmt_t stmt = ir_cjump_stmt(op, expr, ir_const_expr(0), NULL, NULL);
+    return tr_cx(list(&stmt->u.cjump.t, NULL),
+                 list(&stmt->u.cjump.f, NULL),
+                 stmt);
+}
+
+tr_expr_t tr_record_expr(list_t fields, int size)
+{
+    ir_expr_t addr = ir_tmp_expr(temp());
+    ir_expr_t alloc = fr_external_call(
+            "_Alloc", list(ir_const_expr(size * FR_WORD_SIZE), NULL));
+    list_t p, q = NULL, r = NULL;
+    int i;
+
+    for (p = fields, i = 0; p; p = p->next, i++)
+    {
+        tr_expr_t field = p->data;
+        ir_expr_t offset = ir_binop_expr(IR_PLUS, addr,
+                                         ir_const_expr(FR_WORD_SIZE * i));
+        ir_stmt_t stmt = ir_move_stmt(ir_mem_expr(offset), un_ex(field));
+        list_t next = list(stmt, NULL);
+        if (q)
+        {
+            r->next = next;
+            r = next;
+        }
+        else
+            q = r = next;
+    }
+    return tr_ex(
+            ir_eseq_expr(
+                    ir_seq_stmt(list(ir_move_stmt(addr, alloc), q)),
+                    addr));
+}
+
+tr_expr_t tr_array_expr(tr_expr_t size, tr_expr_t init)
+{
+    return tr_ex(fr_external_call(
+                    "_InitArray", list(un_ex(size), list(un_ex(init), NULL))));
+}
+
+tr_expr_t tr_if_expr(tr_expr_t cond, tr_expr_t then, tr_expr_t else_)
+{
+    tmp_label_t t = tmp_label();
+    tmp_label_t f = tmp_label();
+    cx_t cx = un_cx(cond);
+    // ir_expr_t result = ir_tmp_expr(temp());
+
+    fill_patch(cx.trues, t);
+    fill_patch(cx.falses, f);
+    if (else_)
+    {
+        un_nx(NULL);
+    }
+    else
+    {
+    }
+    return NULL;
+}
+
+tr_expr_t tr_assign_expr(tr_expr_t lhs, tr_expr_t rhs)
+{
+    return tr_nx(ir_move_stmt(un_ex(lhs), un_ex(rhs)));
+}
+
 tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level)
 {
     ir_expr_t fp = ir_tmp_expr(fr_fp());

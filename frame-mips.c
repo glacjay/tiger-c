@@ -104,6 +104,24 @@ int fr_offset(fr_access_t access)
     return access->u.offset;
 }
 
+fr_frag_t fr_string_frag(tmp_label_t label, string_t string)
+{
+    fr_frag_t p = checked_malloc(sizeof(*p));
+    p->kind = FR_STRING_FRAG;
+    p->u.string.label = label;
+    p->u.string.string = string;
+    return p;
+}
+
+fr_frag_t fr_proc_frag(ir_stmt_t stmt, frame_t frame)
+{
+    fr_frag_t p = checked_malloc(sizeof(*p));
+    p->kind = FR_PROC_FRAG;
+    p->u.proc.stmt = stmt;
+    p->u.proc.frame = frame;
+    return p;
+}
+
 temp_t fr_fp(void)
 {
     static temp_t _fp = NULL;
@@ -127,4 +145,9 @@ ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr)
         default:
             assert(0);
     }
+}
+
+ir_expr_t fr_external_call(string_t name, list_t args)
+{
+    return ir_call_expr(ir_name_expr(tmp_named_label(name)), args);
 }
