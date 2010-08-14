@@ -14,9 +14,8 @@ list_t tr_formals(tr_level_t level);
 tr_access_t tr_alloc_local(tr_level_t level, bool escape);
 
 typedef struct tr_expr_s *tr_expr_t;
-tr_expr_t tr_ex(ir_expr_t expr);
-tr_expr_t tr_nx(ir_stmt_t stmt);
-tr_expr_t tr_cx(list_t trues, list_t falses, ir_stmt_t stmt);
+
+tr_expr_t tr_num_expr(int num);
 
 tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level);
 

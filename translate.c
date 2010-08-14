@@ -81,6 +81,12 @@ tr_access_t tr_alloc_local(tr_level_t level, bool escape)
     return access;
 }
 
+static tr_access_t tr_static_link(tr_level_t level)
+{
+    assert(level);
+    return level->formals->data;
+}
+
 typedef struct cx_s cx_t;
 struct cx_s
 {
@@ -100,7 +106,7 @@ struct tr_expr_s
     } u;
 };
 
-tr_expr_t tr_ex(ir_expr_t expr)
+static tr_expr_t tr_ex(ir_expr_t expr)
 {
     tr_expr_t p = checked_malloc(sizeof(*p));
     p->kind = TR_EX;
@@ -108,7 +114,7 @@ tr_expr_t tr_ex(ir_expr_t expr)
     return p;
 }
 
-tr_expr_t tr_nx(ir_stmt_t stmt)
+static tr_expr_t tr_nx(ir_stmt_t stmt)
 {
     tr_expr_t p = checked_malloc(sizeof(*p));
     p->kind = TR_NX;
@@ -116,7 +122,7 @@ tr_expr_t tr_nx(ir_stmt_t stmt)
     return p;
 }
 
-tr_expr_t tr_cx(list_t trues, list_t falses, ir_stmt_t stmt)
+static tr_expr_t tr_cx(list_t trues, list_t falses, ir_stmt_t stmt)
 {
     tr_expr_t p = checked_malloc(sizeof(*p));
     p->kind = TR_CX;
@@ -205,13 +211,24 @@ static cx_t un_cx(tr_expr_t expr)
     assert(0);
 }
 
+tr_expr_t tr_num_expr(int num)
+{
+    return tr_ex(ir_const_expr(num));
+}
+
 tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level)
 {
-    tr_ex(NULL);
-    tr_nx(NULL);
-    tr_cx(NULL, NULL, NULL);
-    un_ex(NULL);
-    un_nx(NULL);
-    un_cx(NULL);
-    return NULL;
+    ir_expr_t fp = ir_tmp_expr(fr_fp());
+
+    while (level != access->level)
+    {
+        fr_access_t fr_access = tr_static_link(level)->access;
+        fp = ir_mem_expr(ir_binop_expr(
+                        IR_PLUS, fp,
+                        ir_const_expr(fr_offset(fr_access))));
+        level = level->parent;
+    }
+    return tr_ex(ir_mem_expr(ir_binop_expr(
+                            IR_PLUS, fp,
+                            ir_const_expr(fr_offset(access->access)))));
 }

@@ -233,7 +233,7 @@ static void trans_decl(tr_level_t level, ast_decl_t decl)
 
 static expr_type_t trans_nil_expr(tr_level_t level, ast_expr_t expr)
 {
-    return expr_type(tr_ex(ir_const_expr(0)), ty_nil());
+    return expr_type(NULL, ty_nil());
 }
 
 static expr_type_t trans_var_expr(tr_level_t level, ast_expr_t expr)
@@ -568,20 +568,22 @@ static type_t trans_type(ast_type_t type)
 static expr_type_t trans_simple_var(tr_level_t level, ast_var_t var)
 {
     env_entry_t entry = sym_lookup(_venv, var->u.simple);
+
     if (!entry)
     {
         em_error(var->pos, "undefined variable '%s'", sym_name(var->u.simple));
-        return expr_type(NULL, ty_int());
+        return expr_type(tr_num_expr(0), ty_int());
     }
     else if (entry->kind != ENV_VAR_ENTRY)
     {
         em_error(var->pos,
                  "expected '%s' to be a variable, not a function",
                  sym_name(var->u.simple));
-        return expr_type(NULL, ty_int());
+        return expr_type(tr_num_expr(0), ty_int());
     }
-    else
-        return expr_type(NULL, ty_actual(entry->u.var.type));
+
+    return expr_type(tr_simple_var(entry->u.var.access, level),
+                     ty_actual(entry->u.var.type));
 }
 
 static expr_type_t trans_field_var(tr_level_t level, ast_var_t var)

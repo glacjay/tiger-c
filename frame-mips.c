@@ -1,7 +1,7 @@
 #include "frame.h"
 
 #define K 4
-#define WORD_SIZE 4
+const int FR_WORD_SIZE = 4;
 
 struct frame_s
 {
@@ -50,7 +50,7 @@ frame_t frame(tmp_label_t name, list_t formals)
     {
         fr_access_t access;
         if (formal->b || i >= K)
-            access = in_frame(i * WORD_SIZE);
+            access = in_frame(i * FR_WORD_SIZE);
         else
             access = in_reg(temp());
         if (q)
@@ -82,7 +82,7 @@ fr_access_t fr_alloc_local(frame_t fr, bool escape)
     {
         fr->local_count++;
         /* -2 for the the return address and frame pointer. */
-        access = in_frame(WORD_SIZE * (-2 - fr->local_count));
+        access = in_frame(FR_WORD_SIZE * (-2 - fr->local_count));
     }
     else
         access = in_reg(temp());
@@ -96,4 +96,35 @@ fr_access_t fr_alloc_local(frame_t fr, bool escape)
     else
         fr->locals = list(access, NULL);
     return access;
+}
+
+int fr_offset(fr_access_t access)
+{
+    assert(access && access->kind == FR_IN_FRAME);
+    return access->u.offset;
+}
+
+temp_t fr_fp(void)
+{
+    static temp_t _fp = NULL;
+
+    if (!_fp)
+        _fp = temp();
+    return _fp;
+}
+
+ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr)
+{
+    switch (access->kind)
+    {
+        case FR_IN_FRAME:
+            return ir_mem_expr(ir_binop_expr(
+                            IR_PLUS,
+                            ir_const_expr(access->u.offset),
+                            frame_ptr));
+        case FR_IN_REG:
+            return ir_tmp_expr(access->u.reg);
+        default:
+            assert(0);
+    }
 }
