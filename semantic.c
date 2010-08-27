@@ -248,7 +248,7 @@ static expr_type_t trans_num_expr(tr_level_t level, ast_expr_t expr)
 
 static expr_type_t trans_string_expr(tr_level_t level, ast_expr_t expr)
 {
-    return expr_type(NULL, ty_string());
+    return expr_type(tr_string_expr(expr->u.str), ty_string());
 }
 
 static expr_type_t trans_call_expr(tr_level_t level, ast_expr_t expr)

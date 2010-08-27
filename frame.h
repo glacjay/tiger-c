@@ -26,6 +26,7 @@ struct fr_frag_s
 };
 fr_frag_t fr_string_frag(tmp_label_t label, string_t string);
 fr_frag_t fr_proc_frag(ir_stmt_t stmt, frame_t frame);
+void fr_add_frag(fr_frag_t frag);
 
 temp_t fr_fp(void);
 extern const int FR_WORD_SIZE;

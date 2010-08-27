@@ -122,6 +122,24 @@ fr_frag_t fr_proc_frag(ir_stmt_t stmt, frame_t frame)
     return p;
 }
 
+static list_t _string_frags = NULL;
+static list_t _proc_frags = NULL;
+
+void fr_add_frag(fr_frag_t frag)
+{
+    switch (frag->kind)
+    {
+        case FR_STRING_FRAG:
+            _string_frags = list(frag, _string_frags);
+            break;
+        case FR_PROC_FRAG:
+            _proc_frags = list(frag, _proc_frags);
+            break;
+        default:
+            assert(false);
+    }
+}
+
 temp_t fr_fp(void)
 {
     static temp_t _fp = NULL;

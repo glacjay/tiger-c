@@ -216,6 +216,14 @@ tr_expr_t tr_num_expr(int num)
     return tr_ex(ir_const_expr(num));
 }
 
+tr_expr_t tr_string_expr(string_t str)
+{
+    tmp_label_t label = tmp_label();
+    fr_frag_t frag = fr_string_frag(label, str);
+    fr_add_frag(frag);
+    return tr_ex(ir_name_expr(label));
+}
+
 tr_expr_t tr_op_expr(int op, tr_expr_t left, tr_expr_t right)
 {
     ir_expr_t l = un_ex(left);
