@@ -254,7 +254,7 @@ static expr_type_t trans_string_expr(tr_level_t level, ast_expr_t expr)
 static expr_type_t trans_call_expr(tr_level_t level, ast_expr_t expr)
 {
     env_entry_t entry = sym_lookup(_venv, expr->u.call.func);
-    list_t p, q;
+    list_t l_formals, l_args, l_args2 = NULL, l_next = NULL;
     int i;
 
     if (!entry)
@@ -272,22 +272,31 @@ static expr_type_t trans_call_expr(tr_level_t level, ast_expr_t expr)
         return expr_type(NULL, ty_int());
     }
 
-    for (p = entry->u.func.formals, q = expr->u.call.args, i = 1;
-         p && q;
-         p = p->next, q = q->next, i++)
+    for (l_formals = entry->u.func.formals, l_args = expr->u.call.args, i = 1;
+         l_formals && l_args;
+         l_formals = l_formals->next, l_args = l_args->next, i++)
     {
-        expr_type_t et = trans_expr(level, (ast_expr_t) q->data);
-        if (!ty_match(p->data, et.type))
+        expr_type_t et = trans_expr(level, (ast_expr_t) l_args->data);
+        if (!ty_match(l_formals->data, et.type))
             em_error(expr->pos,
                      "passing argument %d of '%s' with wrong type",
                      i,
                      sym_name(expr->u.call.func));
+
+        if (l_args2)
+            l_next = l_next->next = list(et.expr, NULL);
+        else
+            l_args2 = l_next = list(et.expr, NULL);
     }
-    if (p)
+    if (l_formals)
         em_error(expr->pos, "expect more arguments");
-    else if (q)
+    else if (l_args)
         em_error(expr->pos, "expect less arguments");
-    return expr_type(NULL, ty_actual(entry->u.func.result));
+
+    return expr_type(tr_call_expr(entry->u.func.level,
+                                  entry->u.func.label,
+                                  l_args2),
+                     ty_actual(entry->u.func.result));
 }
 
 static expr_type_t trans_op_expr(tr_level_t level, ast_expr_t expr)

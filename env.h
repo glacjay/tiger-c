@@ -12,7 +12,13 @@ struct env_entry_s
     enum { ENV_VAR_ENTRY, ENV_FUNC_ENTRY } kind;
     union
     {
-        struct { tr_access_t access; type_t type; bool for_; } var;
+        struct
+        {
+            tr_access_t access;
+            type_t type;
+            bool for_;
+        } var;
+
         struct
         {
             tr_level_t level;

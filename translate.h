@@ -17,6 +17,7 @@ typedef struct tr_expr_s *tr_expr_t;
 
 tr_expr_t tr_num_expr(int num);
 tr_expr_t tr_string_expr(string_t str);
+tr_expr_t tr_call_expr(tr_level_t level, tmp_label_t label, list_t args);
 tr_expr_t tr_op_expr(int op, tr_expr_t left, tr_expr_t right);
 tr_expr_t tr_rel_expr(int op, tr_expr_t left, tr_expr_t right);
 tr_expr_t tr_string_rel_expr(int op, tr_expr_t left, tr_expr_t right);

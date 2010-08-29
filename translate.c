@@ -154,16 +154,16 @@ static ir_expr_t un_ex(tr_expr_t expr)
             fill_patch(expr->u.cx.trues, t);
             fill_patch(expr->u.cx.falses, f);
             return ir_eseq_expr(
-                    ir_seq_stmt(
-                            list(ir_move_stmt(ir_tmp_expr(tmp),
-                                              ir_const_expr(1)),
-                                 list(expr->u.cx.stmt,
-                                      list(ir_label_stmt(f),
-                                           list(ir_move_stmt(ir_tmp_expr(tmp),
-                                                             ir_const_expr(0)),
-                                                list(ir_label_stmt(t),
-                                                     NULL)))))),
-                    ir_tmp_expr(tmp));
+              ir_seq_stmt(vlist(
+                  5,
+                  ir_move_stmt(ir_tmp_expr(tmp),
+                               ir_const_expr(1)),
+                  expr->u.cx.stmt,
+                  ir_label_stmt(f),
+                  ir_move_stmt(ir_tmp_expr(tmp),
+                               ir_const_expr(0)),
+                  ir_label_stmt(t))),
+              ir_tmp_expr(tmp));
         }
     }
 
@@ -197,7 +197,7 @@ static cx_t un_cx(tr_expr_t expr)
         case TR_EX: {
             cx_t cx;
             cx.stmt = ir_cjump_stmt(
-                    IR_EQ, expr->u.ex, ir_const_expr(0), NULL, NULL);
+              IR_EQ, expr->u.ex, ir_const_expr(0), NULL, NULL);
             cx.trues = list(&(cx.stmt->u.cjump.t), NULL);
             cx.falses = list(&(cx.stmt->u.cjump.f), NULL);
             return cx;
@@ -222,6 +222,18 @@ tr_expr_t tr_string_expr(string_t str)
     fr_frag_t frag = fr_string_frag(label, str);
     fr_add_frag(frag);
     return tr_ex(ir_name_expr(label));
+}
+
+tr_expr_t tr_call_expr(tr_level_t level, tmp_label_t label, list_t args)
+{
+    ir_expr_t func = ir_name_expr(label);
+    ir_expr_t fp = ir_const_expr(fr_offset(
+        tr_static_link(level)->access));
+    list_t l_args = list(fp, NULL);
+    list_t l_next = l_args;
+    for (; args; args = args->next)
+        l_next = l_next->next = list(un_ex(args->data), NULL);
+    return tr_ex(ir_call_expr(func, l_args));
 }
 
 tr_expr_t tr_op_expr(int op, tr_expr_t left, tr_expr_t right)
@@ -253,7 +265,7 @@ tr_expr_t tr_record_expr(list_t fields, int size)
 {
     ir_expr_t addr = ir_tmp_expr(temp());
     ir_expr_t alloc = fr_external_call(
-            "_Alloc", list(ir_const_expr(size * FR_WORD_SIZE), NULL));
+      "_Alloc", list(ir_const_expr(size * FR_WORD_SIZE), NULL));
     list_t p, q = NULL, r = NULL;
     int i;
 
@@ -273,9 +285,9 @@ tr_expr_t tr_record_expr(list_t fields, int size)
             q = r = next;
     }
     return tr_ex(
-            ir_eseq_expr(
-                    ir_seq_stmt(list(ir_move_stmt(addr, alloc), q)),
-                    addr));
+      ir_eseq_expr(
+        ir_seq_stmt(list(ir_move_stmt(addr, alloc), q)),
+        addr));
 }
 
 tr_expr_t tr_array_expr(tr_expr_t size, tr_expr_t init)
@@ -332,11 +344,11 @@ tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level)
     {
         fr_access_t fr_access = tr_static_link(level)->access;
         fp = ir_mem_expr(ir_binop_expr(
-                        IR_PLUS, fp,
-                        ir_const_expr(fr_offset(fr_access))));
+            IR_PLUS, fp,
+            ir_const_expr(fr_offset(fr_access))));
         level = level->parent;
     }
     return tr_ex(ir_mem_expr(ir_binop_expr(
-                            IR_PLUS, fp,
-                            ir_const_expr(fr_offset(access->access)))));
+          IR_PLUS, fp,
+          ir_const_expr(fr_offset(access->access)))));
 }
