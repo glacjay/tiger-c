@@ -335,14 +335,21 @@ static expr_type_t trans_op_expr(tr_level_t level, ast_expr_t expr)
         case AST_LT:
         case AST_LE:
         case AST_GT:
-        case AST_GE:
+        case AST_GE: {
+            tr_expr_t result = NULL;
             if (!ty_match(left.type, right.type))
                 em_error(expr->pos,
                          "the type of two operands must be the same");
             if (left.type->kind != TY_INT && left.type->kind != TY_STRING)
                 em_error(expr->pos,
                          "the type of comparison's operand must be int or string");
-            return expr_type(NULL, left.type);
+            if (left.type->kind == TY_STRING)
+                result = tr_string_rel_expr(
+                  op-AST_LT+IR_LT, left.expr, right.expr);
+            else
+                result = tr_rel_expr(op-AST_LT+IR_LT, left.expr, right.expr);
+            return expr_type(result, left.type);
+        }
     }
 
     assert(0);
