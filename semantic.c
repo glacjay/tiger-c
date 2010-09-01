@@ -452,7 +452,7 @@ static expr_type_t trans_while_expr(tr_level_t level, ast_expr_t expr)
         em_error(expr->pos, "condition's type must be integer");
     if (body.type->kind != TY_VOID)
         em_error(expr->pos, "while should return nothing");
-    return expr_type(NULL, ty_void());
+    return expr_type(tr_while_expr(cond.expr, body.expr), ty_void());
 }
 
 static expr_type_t trans_for_expr(tr_level_t level, ast_expr_t expr)

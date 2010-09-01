@@ -346,6 +346,25 @@ tr_expr_t tr_if_expr(tr_expr_t cond, tr_expr_t then, tr_expr_t else_)
     return NULL;
 }
 
+tr_expr_t tr_while_expr(tr_expr_t cond, tr_expr_t body)
+{
+    tmp_label_t start = tmp_label();
+    tmp_label_t loop = tmp_label();
+    tmp_label_t done = tmp_label();
+    cx_t cx = un_cx(cond);
+
+    fill_patch(cx.trues, loop);
+    fill_patch(cx.falses, done);
+    return tr_nx(ir_seq_stmt(vlist(
+          6,
+          ir_label_stmt(start),
+          cx.stmt,
+          ir_label_stmt(loop),
+          un_nx(body),
+          ir_jump_stmt(ir_name_expr(start), list(start, NULL)),
+          ir_label_stmt(done))));
+}
+
 tr_expr_t tr_assign_expr(tr_expr_t lhs, tr_expr_t rhs)
 {
     return tr_nx(ir_move_stmt(un_ex(lhs), un_ex(rhs)));
