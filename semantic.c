@@ -315,8 +315,8 @@ static expr_type_t trans_op_expr(tr_level_t level, ast_expr_t expr)
             if (right.type->kind != TY_INT)
                 em_error(expr->u.op.right->pos, "integer required");
             return expr_type(
-                    tr_op_expr(op-AST_PLUS+IR_PLUS, left.expr, right.expr),
-                    ty_int());
+              tr_op_expr(op-AST_PLUS+IR_PLUS, left.expr, right.expr),
+              ty_int());
 
         case AST_EQ:
         case AST_NEQ: {
@@ -326,7 +326,7 @@ static expr_type_t trans_op_expr(tr_level_t level, ast_expr_t expr)
                          "the type of two operands must be the same");
             else if (left.type->kind == TY_STRING)
                 result = tr_string_rel_expr(
-                        op-AST_EQ+IR_EQ, left.expr, right.expr);
+                  op-AST_EQ+IR_EQ, left.expr, right.expr);
             else
                 result = tr_rel_expr(op-AST_EQ+IR_EQ, left.expr, right.expr);
             return expr_type(result, ty_int());
@@ -408,13 +408,19 @@ static expr_type_t trans_array_expr(tr_level_t level, ast_expr_t expr)
 static expr_type_t trans_seq_expr(tr_level_t level, ast_expr_t expr)
 {
     list_t p = expr->u.seq;
+    list_t stmts = NULL, next = NULL;
+
     for (; p; p = p->next)
     {
         expr_type_t et = trans_expr(level, (ast_expr_t) p->data);
+        if (stmts)
+            next = next->next = list(et.expr, NULL);
+        else
+            stmts = next = list(et.expr, NULL);
         if (!p->next)
-            return expr_type(NULL, et.type);
+            return expr_type(tr_seq_expr(stmts), et.type);
     }
-    return expr_type(NULL, ty_void());
+    return expr_type(tr_num_expr(0), ty_void());
 }
 
 static expr_type_t trans_if_expr(tr_level_t level, ast_expr_t expr)

@@ -296,6 +296,21 @@ tr_expr_t tr_array_expr(tr_expr_t size, tr_expr_t init)
         "_InitArray", list(un_ex(size), list(un_ex(init), NULL))));
 }
 
+tr_expr_t tr_seq_expr(list_t stmts)
+{
+    list_t result = NULL, next = NULL;
+    list_t p = stmts;
+    for (; p; p = p->next)
+    {
+        ir_expr_t expr = un_ex(p->data);
+        if (result)
+            next = next->next = list(expr, NULL);
+        else
+            result = next = list(expr, NULL);
+    }
+    return tr_nx(ir_seq_stmt(result));
+}
+
 tr_expr_t tr_if_expr(tr_expr_t cond, tr_expr_t then, tr_expr_t else_)
 {
     tmp_label_t t = tmp_label();
