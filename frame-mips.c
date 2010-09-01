@@ -155,9 +155,9 @@ ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr)
     {
         case FR_IN_FRAME:
             return ir_mem_expr(ir_binop_expr(
-                            IR_PLUS,
-                            ir_const_expr(access->u.offset),
-                            frame_ptr));
+                IR_PLUS,
+                ir_const_expr(access->u.offset),
+                frame_ptr));
         case FR_IN_REG:
             return ir_tmp_expr(access->u.reg);
         default:

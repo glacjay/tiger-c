@@ -365,6 +365,27 @@ tr_expr_t tr_while_expr(tr_expr_t cond, tr_expr_t body)
           ir_label_stmt(done))));
 }
 
+tr_expr_t tr_for_expr(tr_access_t access,
+                      tr_expr_t low,
+                      tr_expr_t high,
+                      tr_expr_t body)
+{
+    ir_expr_t var = fr_expr(access->access, ir_tmp_expr(fr_fp()));
+    tmp_label_t start = tmp_label();
+    tmp_label_t loop = tmp_label();
+    tmp_label_t done = tmp_label();
+    ir_stmt_t cond = ir_cjump_stmt(IR_LE, var, un_ex(high), loop, done);
+    return tr_nx(ir_seq_stmt(vlist(
+          7,
+          ir_move_stmt(var, un_ex(low)),
+          ir_label_stmt(start),
+          cond,
+          ir_label_stmt(loop),
+          un_nx(body),
+          ir_move_stmt(var, ir_binop_expr(IR_PLUS, var, ir_const_expr(1))),
+          ir_label_stmt(done))));
+}
+
 tr_expr_t tr_assign_expr(tr_expr_t lhs, tr_expr_t rhs)
 {
     return tr_nx(ir_move_stmt(un_ex(lhs), un_ex(rhs)));

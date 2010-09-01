@@ -473,7 +473,8 @@ static expr_type_t trans_for_expr(tr_level_t level, ast_expr_t expr)
     if (body.type->kind != TY_VOID)
         em_error(expr->pos, "for should return nothing");
     sym_end_scope(_venv);
-    return expr_type(NULL, ty_void());
+    return expr_type(tr_for_expr(access, lo.expr, hi.expr, body.expr),
+                     ty_void());
 }
 
 static expr_type_t trans_break_expr(tr_level_t level, ast_expr_t expr)

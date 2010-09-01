@@ -26,6 +26,10 @@ tr_expr_t tr_array_expr(tr_expr_t size, tr_expr_t init);
 tr_expr_t tr_seq_expr(list_t stmts);
 tr_expr_t tr_if_expr(tr_expr_t cond, tr_expr_t then, tr_expr_t else_);
 tr_expr_t tr_while_expr(tr_expr_t cond, tr_expr_t body);
+tr_expr_t tr_for_expr(tr_access_t access,
+                      tr_expr_t low,
+                      tr_expr_t high,
+                      tr_expr_t body);
 tr_expr_t tr_assign_expr(tr_expr_t lhs, tr_expr_t rhs);
 
 tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level);
