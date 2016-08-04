@@ -1,4 +1,7 @@
 %{
+
+#define YY_NO_UNISTD_H
+
 #include <ctype.h>
 #include <string.h>
 
@@ -32,6 +35,7 @@ static void append_char(char ch);
 %}
 
 %option nounput
+%option never-interactive
 
 %x COMMENT STRING
 

@@ -2,8 +2,8 @@
 #include <stdlib.h>
 
 #include "ast.h"
-#include "escape.h"
 #include "errmsg.h"
+#include "escape.h"
 #include "parser-wrap.h"
 #include "ppast.h"
 #include "semantic.h"
@@ -21,10 +21,12 @@ int main(int argc, char **argv)
 
     /* yydebug = 1; */
     if (!(prog = parse(argv[1])) || em_any_errors)
+    {
         exit(1);
+    }
 
     esc_find_escape(prog);
-    /* pp_expr(stdout, 0, prog); */
+    // pp_expr(stdout, 0, prog);
     sem_trans_prog(prog);
 
     return 0;
