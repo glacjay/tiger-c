@@ -395,6 +395,9 @@ tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level)
 {
     ir_expr_t fp = ir_tmp_expr(fr_fp());
 
+    return tr_ex(fr_expr(access->access, fp));
+
+#if 0
     while (level != access->level)
     {
         fr_access_t fr_access = tr_static_link(level)->access;
@@ -406,4 +409,5 @@ tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level)
     return tr_ex(ir_mem_expr(ir_binop_expr(
           IR_PLUS, fp,
           ir_const_expr(fr_offset(access->access)))));
+#endif
 }

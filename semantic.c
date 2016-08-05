@@ -677,7 +677,8 @@ static expr_type_t trans_var(tr_level_t level, ast_var_t var)
 
 void sem_trans_prog(ast_expr_t prog)
 {
+    expr_type_t result;
     _venv = env_base_venv();
     _tenv = env_base_tenv();
-    trans_expr(tr_outermost(), prog);
+    result = trans_expr(tr_outermost(), prog);
 }
