@@ -2,6 +2,7 @@
 
 #include "frame.h"
 #include "ir.h"
+#include "ppir.h"
 #include "translate.h"
 
 struct tr_access_s
@@ -410,4 +411,9 @@ tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level)
           IR_PLUS, fp,
           ir_const_expr(fr_offset(access->access)))));
 #endif
+}
+
+void tr_pp_expr(tr_expr_t expr)
+{
+    pp_stmts(stdout, list(un_nx(expr), NULL));
 }

@@ -34,4 +34,6 @@ tr_expr_t tr_assign_expr(tr_expr_t lhs, tr_expr_t rhs);
 
 tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level);
 
+void tr_pp_expr(tr_expr_t expr);
+
 #endif

@@ -29,6 +29,8 @@ add_executable(tiger
     parser.y
     ppast.c
     ppast.h
+    ppir.c
+    ppir.h
     semantic.c
     semantic.h
     symbol.c
