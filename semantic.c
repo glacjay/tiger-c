@@ -26,7 +26,7 @@ static expr_type_t expr_type(tr_expr_t expr, type_t type)
     return result;
 }
 
-static void trans_decl(tr_level_t level, ast_decl_t decl);
+static tr_expr_t trans_decl(tr_level_t level, ast_decl_t decl);
 static expr_type_t trans_expr(tr_level_t level, ast_expr_t expr);
 static type_t trans_type(ast_type_t type);
 static expr_type_t trans_var(tr_level_t level, ast_var_t var);
@@ -90,7 +90,7 @@ static list_t formal_escape_list(list_t params)
     return q;
 }
 
-static void trans_funcs_decl(tr_level_t level, ast_decl_t decl)
+static tr_expr_t trans_funcs_decl(tr_level_t level, ast_decl_t decl)
 {
     list_t p, q;
 
@@ -153,9 +153,11 @@ static void trans_funcs_decl(tr_level_t level, ast_decl_t decl)
             em_error(func->pos, "function body's type is incorrect");
         sym_end_scope(_venv);
     }
+
+    return NULL;
 }
 
-static void trans_types_decl(tr_level_t level, ast_decl_t decl)
+static tr_expr_t trans_types_decl(tr_level_t level, ast_decl_t decl)
 {
     list_t p, q;
 
@@ -193,9 +195,11 @@ static void trans_types_decl(tr_level_t level, ast_decl_t decl)
                      "infinite recursive type '%s'",
                      sym_name(nametype->name));
     }
+
+    return NULL;
 }
 
-static void trans_var_decl(tr_level_t level, ast_decl_t decl)
+static tr_expr_t trans_var_decl(tr_level_t level, ast_decl_t decl)
 {
     expr_type_t init = trans_expr(level, decl->u.var.init);
     type_t type = init.type;
@@ -215,9 +219,11 @@ static void trans_var_decl(tr_level_t level, ast_decl_t decl)
     else if (init.type->kind == TY_VOID)
         em_error(decl->pos, "can't assign void value to a variable");
     sym_enter(_venv, decl->u.var.var, env_var_entry(access, type, false));
+
+    return tr_assign_expr(tr_simple_var(access, level), init.expr);
 }
 
-typedef void (*trans_decl_func)(tr_level_t level, ast_decl_t);
+typedef tr_expr_t (*trans_decl_func)(tr_level_t level, ast_decl_t);
 /* XXX Keep sync with ast_decl_t's declaration! */
 static trans_decl_func _trans_decl_funcs[] =
 {
@@ -226,9 +232,9 @@ static trans_decl_func _trans_decl_funcs[] =
     trans_var_decl,
 };
 
-static void trans_decl(tr_level_t level, ast_decl_t decl)
+static tr_expr_t trans_decl(tr_level_t level, ast_decl_t decl)
 {
-    _trans_decl_funcs[decl->kind](level, decl);
+    return _trans_decl_funcs[decl->kind](level, decl);
 }
 
 static expr_type_t trans_nil_expr(tr_level_t level, ast_expr_t expr)
@@ -487,14 +493,27 @@ static expr_type_t trans_let_expr(tr_level_t level, ast_expr_t expr)
 {
     expr_type_t result;
     list_t p;
+    list_t tr_exprs = NULL;
 
     sym_begin_scope(_venv);
     sym_begin_scope(_tenv);
+
     for (p = expr->u.let.decls; p; p = p->next)
-        trans_decl(level, p->data);
+    {
+        tr_expr_t tr_expr = trans_decl(level, p->data);
+        if (tr_expr)
+        {
+            tr_exprs = join_list(tr_exprs, list(tr_expr, NULL));
+        }
+    }
+
     result = trans_expr(level, expr->u.let.body);
+    tr_exprs = join_list(tr_exprs, list(result.expr, NULL));
+    result.expr = tr_seq_expr(tr_exprs);
+
     sym_end_scope(_venv);
     sym_end_scope(_tenv);
+
     return result;
 }
 

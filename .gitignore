@@ -5,6 +5,7 @@ CMakeCache.txt
 CMakeFiles/*
 Makefile
 cmake_install.cmake
+*.dir
 
 .vs/
 .vscode/
@@ -12,3 +13,16 @@ cmake_install.cmake
 lexer.c
 parser.[ch]
 tiger
+
+*.exe
+*.exe.stackdump
+
+*.sln
+*.sdf
+*.VC.opendb
+*.vcproj
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+Debug
+Release

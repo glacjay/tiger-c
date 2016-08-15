@@ -303,7 +303,7 @@ tr_expr_t tr_seq_expr(list_t stmts)
     list_t p = stmts;
     for (; p; p = p->next)
     {
-        ir_expr_t expr = un_ex(p->data);
+        ir_stmt_t expr = un_nx(p->data);
         if (result)
             next = next->next = list(expr, NULL);
         else
