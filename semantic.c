@@ -359,6 +359,7 @@ static expr_type_t trans_op_expr(tr_level_t level, ast_expr_t expr)
     }
 
     assert(0);
+    return expr_type(NULL, NULL);
 }
 
 static expr_type_t trans_record_expr(tr_level_t level, ast_expr_t expr)
@@ -648,22 +649,28 @@ static expr_type_t trans_field_var(tr_level_t level, ast_var_t var)
 {
     expr_type_t et = trans_var(level, var->u.field.var);
     list_t p;
+    int i;
 
     if (et.type->kind != TY_RECORD)
     {
         em_error(var->pos, "expected record type variable");
-        return expr_type(NULL, ty_int());
+        return expr_type(tr_num_expr(0), ty_int());
     }
-    for (p = et.type->u.record; p; p = p->next)
+
+    for (p = et.type->u.record, i = 0; p; p = p->next, ++i)
     {
         ty_field_t field = p->data;
         if (field->name == var->u.field.field)
-            return expr_type(NULL, ty_actual(field->type));
+        {
+            return expr_type(tr_field_var(et.expr, i),
+                             ty_actual(field->type));
+        }
     }
+
     em_error(var->pos,
              "there is no field named '%s'",
              sym_name(var->u.field.field));
-    return expr_type(NULL, ty_int());
+    return expr_type(tr_num_expr(0), ty_int());
 }
 
 static expr_type_t trans_sub_var(tr_level_t level, ast_var_t var)
@@ -705,5 +712,8 @@ void sem_trans_prog(ast_expr_t prog)
     {
         exit(1);
     }
+
+    fr_pp_frags(stdout);
+    fprintf(stdout, "MAIN PROGRAM:\n");
     tr_pp_expr(result.expr);
 }

@@ -130,7 +130,7 @@ void fr_add_frag(fr_frag_t frag)
     switch (frag->kind)
     {
         case FR_STRING_FRAG:
-            _string_frags = list(frag, _string_frags);
+            _string_frags = list_append(_string_frags, frag);
             break;
         case FR_PROC_FRAG:
             _proc_frags = list(frag, _proc_frags);
@@ -168,4 +168,17 @@ ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr)
 ir_expr_t fr_external_call(string_t name, list_t args)
 {
     return ir_call_expr(ir_name_expr(tmp_named_label(name)), args);
+}
+
+void fr_pp_frags(FILE *out)
+{
+    list_t p;
+
+    fprintf(out, "STRING FRAGMENTS:\n");
+    for (p = _string_frags; p; p = p->next)
+    {
+        fr_frag_t frag = p->data;
+        fprintf(out, "    %s: \"%s\"\n", tmp_name(frag->u.string.label), frag->u.string.string);
+    }
+    fprintf(out, "\n");
 }

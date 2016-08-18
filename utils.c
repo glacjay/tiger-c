@@ -70,3 +70,8 @@ list_t join_list(list_t list1, list_t list2)
     p->next = list2;
     return list1;
 }
+
+list_t list_append(list_t list1, void *data)
+{
+    return join_list(list1, list(data, NULL));
+}

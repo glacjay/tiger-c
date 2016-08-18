@@ -169,6 +169,7 @@ static ir_expr_t un_ex(tr_expr_t expr)
     }
 
     assert(0);
+    return NULL;
 }
 
 static ir_stmt_t un_nx(tr_expr_t expr)
@@ -189,27 +190,31 @@ static ir_stmt_t un_nx(tr_expr_t expr)
     }
 
     assert(0);
+    return NULL;
 }
 
 static cx_t un_cx(tr_expr_t expr)
 {
+    cx_t cx;
+
     switch (expr->kind)
     {
-        case TR_EX: {
-            cx_t cx;
+        case TR_EX:
             cx.stmt = ir_cjump_stmt(
               IR_EQ, expr->u.ex, ir_const_expr(0), NULL, NULL);
             cx.trues = list(&(cx.stmt->u.cjump.t), NULL);
             cx.falses = list(&(cx.stmt->u.cjump.f), NULL);
             return cx;
-        }
+
         case TR_NX:
             assert(0);
+
         case TR_CX:
             return expr->u.cx;
     }
 
     assert(0);
+    return cx;
 }
 
 tr_expr_t tr_num_expr(int num)
@@ -411,6 +416,16 @@ tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level)
           IR_PLUS, fp,
           ir_const_expr(fr_offset(access->access)))));
 #endif
+}
+
+tr_expr_t tr_field_var(tr_expr_t record, int index)
+{
+    return tr_ex(ir_mem_expr(ir_binop_expr(
+          IR_PLUS,
+          un_ex(record),
+          ir_binop_expr(IR_MUL,
+                        ir_const_expr(index),
+                        ir_const_expr(FR_WORD_SIZE)))));
 }
 
 void tr_pp_expr(tr_expr_t expr)

@@ -33,4 +33,6 @@ extern const int FR_WORD_SIZE;
 ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr);
 ir_expr_t fr_external_call(string_t name, list_t args);
 
+void fr_pp_frags(FILE *out);
+
 #endif

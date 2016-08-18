@@ -33,6 +33,7 @@ tr_expr_t tr_for_expr(tr_access_t access,
 tr_expr_t tr_assign_expr(tr_expr_t lhs, tr_expr_t rhs);
 
 tr_expr_t tr_simple_var(tr_access_t access, tr_level_t level);
+tr_expr_t tr_field_var(tr_expr_t record, int index);
 
 void tr_pp_expr(tr_expr_t expr);
 
