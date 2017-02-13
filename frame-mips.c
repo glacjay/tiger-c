@@ -133,7 +133,7 @@ void fr_add_frag(fr_frag_t frag)
             _string_frags = list_append(_string_frags, frag);
             break;
         case FR_PROC_FRAG:
-            _proc_frags = list(frag, _proc_frags);
+            _proc_frags = list_append(_proc_frags, frag);
             break;
         default:
             assert(false);
@@ -149,6 +149,17 @@ temp_t fr_fp(void)
     return _fp;
 }
 
+temp_t fr_rv(void)
+{
+    static temp_t _rv = NULL;
+
+    if (!_rv)
+    {
+        _rv = temp();
+    }
+    return _rv;
+}
+
 ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr)
 {
     switch (access->kind)
@@ -158,11 +169,13 @@ ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr)
                 IR_PLUS,
                 ir_const_expr(access->u.offset),
                 frame_ptr));
+
         case FR_IN_REG:
             return ir_tmp_expr(access->u.reg);
-        default:
-            assert(0);
     }
+
+    assert(0);
+    return NULL;
 }
 
 ir_expr_t fr_external_call(string_t name, list_t args)
@@ -178,7 +191,23 @@ void fr_pp_frags(FILE *out)
     for (p = _string_frags; p; p = p->next)
     {
         fr_frag_t frag = p->data;
-        fprintf(out, "    %s: \"%s\"\n", tmp_name(frag->u.string.label), frag->u.string.string);
+        fprintf(out, "    %s: \"%s\"\n",
+                tmp_name(frag->u.string.label),
+                frag->u.string.string);
     }
     fprintf(out, "\n");
+
+    fprintf(out, "FUNCTION FRAGMENTS:\n");
+    for (p = _proc_frags; p; p = p->next)
+    {
+        fr_frag_t frag = p->data;
+        fprintf(out, "    %s:\n", tmp_name(frag->u.proc.frame->name));
+        fprintf(out, "\n");
+    }
+    fprintf(out, "\n");
+}
+
+ir_stmt_t fr_proc_entry_exit_1(frame_t fr, ir_stmt_t stmt)
+{
+    return stmt;
 }

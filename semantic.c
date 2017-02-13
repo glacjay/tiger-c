@@ -2,6 +2,7 @@
 
 #include "env.h"
 #include "errmsg.h"
+#include "frame.h"
 #include "ir.h"
 #include "ppast.h"
 #include "semantic.h"
@@ -93,6 +94,7 @@ static list_t formal_escape_list(list_t params)
 static tr_expr_t trans_funcs_decl(tr_level_t level, ast_decl_t decl)
 {
     list_t p, q;
+    expr_type_t result;
 
     /* Check for function redefinitions. */
     for (p = decl->u.funcs; p && p->next; p = p->next)
@@ -138,7 +140,6 @@ static tr_expr_t trans_funcs_decl(tr_level_t level, ast_decl_t decl)
         list_t q = func->params;
         list_t r = entry->u.func.formals;
         list_t s = tr_formals(entry->u.func.level)->next;
-        expr_type_t result;
 
         sym_begin_scope(_venv);
         for (; q; q = q->next, r = r->next, s = s->next)
@@ -154,6 +155,9 @@ static tr_expr_t trans_funcs_decl(tr_level_t level, ast_decl_t decl)
         sym_end_scope(_venv);
     }
 
+    fr_add_frag(fr_proc_frag(ir_move_stmt(ir_tmp_expr(fr_rv()),
+                                          un_ex(result.expr)),
+                             tr_level_frame(level)));
     return NULL;
 }
 

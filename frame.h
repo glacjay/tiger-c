@@ -28,10 +28,14 @@ fr_frag_t fr_string_frag(tmp_label_t label, string_t string);
 fr_frag_t fr_proc_frag(ir_stmt_t stmt, frame_t frame);
 void fr_add_frag(fr_frag_t frag);
 
-temp_t fr_fp(void);
 extern const int FR_WORD_SIZE;
+temp_t fr_fp(void);
+temp_t fr_rv(void);
+
 ir_expr_t fr_expr(fr_access_t access, ir_expr_t frame_ptr);
 ir_expr_t fr_external_call(string_t name, list_t args);
+
+ir_stmt_t fr_proc_entry_exit_1(frame_t fr, ir_stmt_t stmt);
 
 void fr_pp_frags(FILE *out);
 

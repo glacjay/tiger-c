@@ -82,6 +82,11 @@ tr_access_t tr_alloc_local(tr_level_t level, bool escape)
     return access;
 }
 
+frame_t tr_level_frame(tr_level_t level)
+{
+    return level->frame;
+}
+
 static tr_access_t tr_static_link(tr_level_t level)
 {
     assert(level);
@@ -195,7 +200,7 @@ static ir_stmt_t un_nx(tr_expr_t expr)
 
 static cx_t un_cx(tr_expr_t expr)
 {
-    cx_t cx;
+    cx_t cx = { 0 };
 
     switch (expr->kind)
     {
